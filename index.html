@@ -110,29 +110,48 @@
         }
 
         .game-modal {
-            position: absolute;
-            top: 0.5rem;
-            left: 0.5rem;
-            width: auto;
-            height: auto;
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            width: 80%;
+            height: 80%;
             display: none;
+            background-color: rgba(0, 0, 0, 0.8);
+            z-index: 1000;
         }
 
         .modal-content {
             background-color: white;
-            padding: 0.5rem;
-            border-radius: 0.5rem;
-            width: auto;
-            max-width: 0.9rem;
-            height: auto;
+            padding: 20px;
+            border-radius: 10px;
+            width: 100%;
+            height: 100%;
             overflow: hidden;
+            position: relative;
         }
 
         .close-btn {
             position: absolute;
-            top: 0.5rem;
-            right: 0.5rem;
+            top: 10px;
+            right: 10px;
             cursor: pointer;
+            background: var(--accent);
+            color: white;
+            border: none;
+            padding: 5px 10px;
+            border-radius: 5px;
+            font-size: 1rem;
+        }
+
+        .close-btn:hover {
+            background: var(--neon-blue);
+        }
+
+        .game-frame {
+            width: 100%;
+            height: 100%;
+            border: none;
         }
     </style>
 </head>
@@ -146,7 +165,7 @@
     <div class="game-modal" id="gameModal">
       <div class="modal-content">
           <button class="close-btn" onclick="closeGame()">×</button>
-          <iframe class="game-frame" id="gameFrame" width="800" height="600"></iframe>
+          <iframe class="game-frame" id="gameFrame"></iframe>
       </div>
     </div>
 
@@ -193,29 +212,29 @@
           { title: "Match Cards Bored", url: "Match_cards_bored.html" },
           { title: "Math Cube", url: "math-cube.html" },
           { title: "Mathfall", url: "mathfall.html" },
-          // Add more games as needed
-          // Continue adding the remaining games up to a total of sixty
-          // Example:
-          // { title: "Neon Reflex", url: "neon_reflex.html" },
-          // { title: "Neuro", url: "Neuro.html" },
-          // { title: "Pac-Man", url: "Pac-Man.html" },
-          // { title: "Pong V2", url: "Pong_v2.html" },
-          // { title: "Pop Colors", url: "pop-colors.html" },
-          // { title: "Q-Ball", url: "Q-ball.html" },
-          // { title: "Quantum Pulse", url: "QuantumPulse.html" },
-          // { title: "Quantum Titles", url: "quantum_titles.html" },
-          // { title: "React", url: "react.html" },
-          // { title: "Reflex Match", url: "reflex_match.html" },
-          // { title: "Runner", url: "Runner.html" },
-          // { title: "Shape Mania", url: "shape_mania.html" },
-          // { title: "Shoot", url: "shoot.html" },
-          // { title: "Snake", url: "snake.html" },
-          // { title: "Snake V2 Neon", url: "snake_v2_neon.html" },
-          // { title: "Space V2", url: "space_v2.html" },
-          // { title: "Tetris", url: "Tetris.html" },
-          // { title: "Voxel Runner", url: "voxel_runner.html" },
-          // { title: "_v2", url: "_v2.html" }
+          { title: "Neon Reflex", url: "neon_reflex.html" },
+          { title: "Neuro", url: "Neuro.html" },
+          { title: "Pac-Man", url: "Pac-Man.html" },
+          { title: "Pong V2", url: "Pong_v2.html" },
+          { title: "Pop Colors", url: "pop-colors.html" },
+          { title: "Q-Ball", url: "Q-ball.html" },
+          { title: "Quantum Pulse", url: "QuantumPulse.html" },
+          { title: "Quantum Titles", url: "quantum_titles.html" },
+          { title: "React", url: "react.html" },
+          { title: "Reflex Match", url: "reflex_match.html" },
+          { title: "Runner", url: "Runner.html" },
+          { title: "Shape Mania", url: "shape_mania.html" },
+          { title: "Shoot", url: "shoot.html" },
+          { title: "Snake", url: "snake.html" },
+          { title: "Snake V2 Neon", url: "snake_v2_neon.html" },
+          { title: "Space V2", url: "space_v2.html" },
+          { title: "Tetris", url: "Tetris.html" },
+          { title: "Voxel Runner", url: "voxel_runner.html" },
+          { title: "_v2", url: "_v2.html" }
       ];
+
+      // Sort games alphabetically by title
+      games.sort((a, b) => a.title.localeCompare(b.title));
 
       function createGameCards() {
          const grid = document.getElementById('gamesGrid');
