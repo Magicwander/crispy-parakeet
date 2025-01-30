@@ -103,6 +103,8 @@
             padding: 10px 20px;
             border-radius: 0.5rem;
             font-size: 0.9rem;
+            cursor: pointer;
+            transition: transform 0.2s ease;
         }
 
         .play-btn:hover {
@@ -142,6 +144,7 @@
             padding: 5px 10px;
             border-radius: 5px;
             font-size: 1rem;
+            z-index: 1001;
         }
 
         .close-btn:hover {
@@ -163,109 +166,118 @@
     <div class="games-grid" id="gamesGrid"></div>
 
     <div class="game-modal" id="gameModal">
-      <div class="modal-content">
-          <button class="close-btn" onclick="closeGame()">×</button>
-          <iframe class="game-frame" id="gameFrame"></iframe>
-      </div>
+        <div class="modal-content">
+            <button class="close-btn" onclick="closeGame()">×</button>
+            <iframe class="game-frame" id="gameFrame"></iframe>
+        </div>
     </div>
 
     <script>
-      const games = [
-          { title: "Arkanoid", url: "Arkanoid.html" },
-          { title: "Asteroid", url: "Asteroid.html" },
-          { title: "Asteroid V2", url: "asteroid_v2.html" },
-          { title: "Atari", url: "atari.html" },
-          { title: "Attari with Grids", url: "attari_with_grids.html" },
-          { title: "Ball Mech", url: "ball_mech.html" },
-          { title: "Block Fuse", url: "Block-Fuse.html" },
-          { title: "Breakout", url: "Breakout.html" },
-          { title: "Bubble Pop V2", url: "Bubble-pop-v2.html" },
-          { title: "Bubble Shooter", url: "Bubble-shooter.html" },
-          { title: "Bubble Pop V1", url: "Bubble_pop_v1.html" },
-          { title: "Bubble Shoot", url: "bubble_shoot.html" },
-          { title: "Card Game Low Logic", url: "card-game-low-logic.html" },
-          { title: "Centipede Cube", url: "centipede-cube.html" },
-          { title: "Chroma Cube", url: "chromacube.html" },
-          { title: "Chrono Time", url: "chronotime.html" },
-          { title: "Color Block", url: "color-block.html" },
-          { title: "Color Hop", url: "color-hop.html" },
-          { title: "Color Match", url: "color-match.html" },
-          { title: "Color Shift", url: "colorshift.html" },
-          { title: "Color Catcher", url: "color_catcher.html" },
-          { title: "Color Sprint", url: "color_sprint.html" },
-          { title: "Color Switch", url: "color_switch.html" },
-          { title: "Crystal", url: "crystal.html" },
-          { title: "Cube Fall", url: "cube-fall.html" },
-          { title: "Element Grid", url: "ElementGrid.html" },
-          { title: "Escape", url: "Escape.html" },
-          { title: "Frogger", url: "Frogger.html" },
-          { title: "Glassy Match", url: "glassy_match.html" },
-          { title: "Glassy Vortex", url: "glassy_vortex.html" },
-          { title: "Glow Ball", url: "glow_ball.html" },
-          { title: "Glow Sequence", url: "glow_seq.html" },
-          { title: "Gravity Color Block", url: "gravity-color-block.html" },
-          { title: "Jumper", url: "jumper.html" },
-          { title: "Letter Match", url: "letter_match.html" },
-          { title: "Lumina", url: "lumina.html" },
-          { title: "Match-3", url: "match-3.html" },
-          { title: "Match Symbol", url: "Match-symbol.html" },
-          { title: "Match Cards Bored", url: "Match_cards_bored.html" },
-          { title: "Math Cube", url: "math-cube.html" },
-          { title: "Mathfall", url: "mathfall.html" },
-          { title: "Neon Reflex", url: "neon_reflex.html" },
-          { title: "Neuro", url: "Neuro.html" },
-          { title: "Pac-Man", url: "Pac-Man.html" },
-          { title: "Pong V2", url: "Pong_v2.html" },
-          { title: "Pop Colors", url: "pop-colors.html" },
-          { title: "Q-Ball", url: "Q-ball.html" },
-          { title: "Quantum Pulse", url: "QuantumPulse.html" },
-          { title: "Quantum Titles", url: "quantum_titles.html" },
-          { title: "React", url: "react.html" },
-          { title: "Reflex Match", url: "reflex_match.html" },
-          { title: "Runner", url: "Runner.html" },
-          { title: "Shape Mania", url: "shape_mania.html" },
-          { title: "Shoot", url: "shoot.html" },
-          { title: "Snake", url: "snake.html" },
-          { title: "Snake V2 Neon", url: "snake_v2_neon.html" },
-          { title: "Space V2", url: "space_v2.html" },
-          { title: "Tetris", url: "Tetris.html" },
-          { title: "Voxel Runner", url: "voxel_runner.html" },
-          { title: "_v2", url: "_v2.html" }
-      ];
+        const games = [
+            { title: "Arkanoid", url: "Arkanoid.html" },
+            { title: "Asteroid", url: "Asteroid.html" },
+            { title: "Asteroid V2", url: "asteroid_v2.html" },
+            { title: "Atari", url: "atari.html" },
+            { title: "Attari with Grids", url: "attari_with_grids.html" },
+            { title: "Ball Mech", url: "ball_mech.html" },
+            { title: "Block Fuse", url: "Block-Fuse.html" },
+            { title: "Breakout", url: "Breakout.html" },
+            { title: "Bubble Pop V2", url: "Bubble-pop-v2.html" },
+            { title: "Bubble Shooter", url: "Bubble-shooter.html" },
+            { title: "Bubble Pop V1", url: "Bubble_pop_v1.html" },
+            { title: "Bubble Shoot", url: "bubble_shoot.html" },
+            { title: "Card Game Low Logic", url: "card-game-low-logic.html" },
+            { title: "Centipede Cube", url: "centipede-cube.html" },
+            { title: "Chroma Cube", url: "chromacube.html" },
+            { title: "Chrono Time", url: "chronotime.html" },
+            { title: "Color Block", url: "color-block.html" },
+            { title: "Color Hop", url: "color-hop.html" },
+            { title: "Color Match", url: "color-match.html" },
+            { title: "Color Shift", url: "colorshift.html" },
+            { title: "Color Catcher", url: "color_catcher.html" },
+            { title: "Color Sprint", url: "color_sprint.html" },
+            { title: "Color Switch", url: "color_switch.html" },
+            { title: "Crystal", url: "crystal.html" },
+            { title: "Cube Fall", url: "cube-fall.html" },
+            { title: "Element Grid", url: "ElementGrid.html" },
+            { title: "Escape", url: "Escape.html" },
+            { title: "Frogger", url: "Frogger.html" },
+            { title: "Glassy Match", url: "glassy_match.html" },
+            { title: "Glassy Vortex", url: "glassy_vortex.html" },
+            { title: "Glow Ball", url: "glow_ball.html" },
+            { title: "Glow Sequence", url: "glow_seq.html" },
+            { title: "Gravity Color Block", url: "gravity-color-block.html" },
+            { title: "Jumper", url: "jumper.html" },
+            { title: "Letter Match", url: "letter_match.html" },
+            { title: "Lumina", url: "lumina.html" },
+            { title: "Match-3", url: "match-3.html" },
+            { title: "Match Symbol", url: "Match-symbol.html" },
+            { title: "Match Cards Bored", url: "Match_cards_bored.html" },
+            { title: "Math Cube", url: "math-cube.html" },
+            { title: "Mathfall", url: "mathfall.html" },
+            { title: "Neon Reflex", url: "neon_reflex.html" },
+            { title: "Neuro", url: "Neuro.html" },
+            { title: "Pac-Man", url: "Pac-Man.html" },
+            { title: "Pong V2", url: "Pong_v2.html" },
+            { title: "Pop Colors", url: "pop-colors.html" },
+            { title: "Q-Ball", url: "Q-ball.html" },
+            { title: "Quantum Pulse", url: "QuantumPulse.html" },
+            { title: "Quantum Titles", url: "quantum_titles.html" },
+            { title: "React", url: "react.html" },
+            { title: "Reflex Match", url: "reflex_match.html" },
+            { title: "Runner", url: "Runner.html" },
+            { title: "Shape Mania", url: "shape_mania.html" },
+            { title: "Shoot", url: "shoot.html" },
+            { title: "Snake", url: "snake.html" },
+            { title: "Snake V2 Neon", url: "snake_v2_neon.html" },
+            { title: "Space V2", url: "space_v2.html" },
+            { title: "Tetris", url: "Tetris.html" },
+            { title: "Voxel Runner", url: "voxel_runner.html" },
+            { title: "_v2", url: "_v2.html" }
+        ];
 
-      // Sort games alphabetically by title
-      games.sort((a, b) => a.title.localeCompare(b.title));
+        function createGameCards() {
+            const grid = document.getElementById('gamesGrid');
+            
 
-      function createGameCards() {
-         const grid = document.getElementById('gamesGrid');
-         games.forEach(game => {
-             const card = document.createElement('div');
-             card.className = 'game-card';
-             card.innerHTML = `
-                 <div class="game-icon">🎮</div>
-                 <h2 class="game-title">${game.title}</h2>
-                 <button class="play-btn" onclick="playGame('${game.url}')">Play Now</button>
-             `;
-             grid.appendChild(card);
-         });
-      }
+            const sortedGames = games.sort((a, b) => {
+                const aStartsWithA = a.title.toLowerCase().startsWith('a');
+                const bStartsWithA = b.title.toLowerCase().startsWith('a');
+                
+                if (aStartsWithA && !bStartsWithA) return 1;
+                if (!aStartsWithA && bStartsWithA) return -1;
+                if (aStartsWithA && bStartsWithA) return Math.random() - 0.5;
+                return Math.random() - 0.5;
+            });
 
-      function playGame(url) {
-         const modal = document.getElementById('gameModal');
-         const frame = document.getElementById('gameFrame');
-         frame.src = url; // Set the URL of the game to the iframe
-         modal.style.display = 'flex'; // Show the modal
-      }
+            sortedGames.forEach(game => {
+                const card = document.createElement('div');
+                card.className = 'game-card';
+                card.innerHTML = `
+                    <div class="game-icon">🎮</div>
+                    <h2 class="game-title">${game.title}</h2>
+                    <button class="play-btn" onclick="playGame('${game.url}')">Play Now</button>
+                `;
+                grid.appendChild(card);
+            });
+        }
 
-      function closeGame() {
-         const modal = document.getElementById('gameModal');
-         const frame = document.getElementById('gameFrame');
-         modal.style.display = 'none'; // Hide the modal
-         frame.src = ''; // Clear the iframe source
-      }
+        function playGame(url) {
+            const modal = document.getElementById('gameModal');
+            const frame = document.getElementById('gameFrame');
+            frame.src = url;
+            modal.style.display = 'flex';
+        }
 
-      // Initialize the game cards on page load
-      createGameCards();
+        function closeGame() {
+            const modal = document.getElementById('gameModal');
+            const frame = document.getElementById('gameFrame');
+            modal.style.display = 'none';
+            frame.src = '';
+        }
+
+        // Initialize the game cards on page load
+        createGameCards();
     </script>
 </body>
 </html>
