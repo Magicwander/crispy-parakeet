@@ -1,0 +1,297 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Cubic Merge</title>
+    <style>
+        body {
+            margin: 0;
+            padding: 20px;
+            background: #1a1a1a;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            font-family: Arial, sans-serif;
+            color: white;
+        }
+
+        #gameContainer {
+            display: grid;
+            gap: 10px;
+            padding: 10px;
+            background: #2a2a2a;
+            border-radius: 10px;
+            box-shadow: 0 0 20px rgba(0,0,0,0.3);
+        }
+
+        .cell {
+            width: 80px;
+            height: 80px;
+            background: #333;
+            border-radius: 8px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            font-size: 24px;
+            font-weight: bold;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .cell:hover {
+            transform: scale(1.05);
+        }
+
+        .cell.selected {
+            border: 3px solid #fff;
+        }
+
+        .cell.merged {
+            animation: merge 0.5s ease;
+        }
+
+        @keyframes merge {
+            0% { transform: scale(1); }
+            50% { transform: scale(1.2); }
+            100% { transform: scale(1); }
+        }
+
+        #stats {
+            margin: 20px;
+            font-size: 24px;
+            display: flex;
+            gap: 20px;
+        }
+
+        #controls {
+            margin: 20px;
+        }
+
+        button {
+            padding: 10px 20px;
+            font-size: 18px;
+            background: #4CAF50;
+            border: none;
+            color: white;
+            border-radius: 5px;
+            cursor: pointer;
+            margin: 0 10px;
+        }
+
+        button:hover {
+            background: #45a049;
+        }
+
+        .value-1 { background: #FF4444; }
+        .value-2 { background: #FF8844; }
+        .value-4 { background: #FFCC44; }
+        .value-8 { background: #44FF44; }
+        .value-16 { background: #44FFFF; }
+        .value-32 { background: #4444FF; }
+        .value-64 { background: #8844FF; }
+        .value-128 { background: #FF44FF; }
+        .value-256 { background: #FF4488; }
+        .value-512 { background: #FFFF44; }
+
+        #gameOver {
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background: rgba(0,0,0,0.9);
+            padding: 30px;
+            border-radius: 10px;
+            text-align: center;
+            display: none;
+        }
+    </style>
+</head>
+<body>
+    <div id="stats">
+        <div>Score: <span id="score">0</span></div>
+        <div>Moves: <span id="moves">0</span></div>
+    </div>
+
+    <div id="gameContainer"></div>
+
+    <div id="controls">
+        <button onclick="startGame()">New Game</button>
+        <button onclick="shuffleBoard()">Shuffle</button>
+    </div>
+
+    <div id="gameOver">
+        <h2>Game Over!</h2>
+        <p>Final Score: <span id="finalScore">0</span></p>
+        <button onclick="startGame()">Play Again</button>
+    </div>
+
+    <script>
+        const GRID_SIZE = 5;
+        const INITIAL_NUMBERS = [1, 1, 1, 2, 2, 2, 4, 4];
+        let score = 0;
+        let moves = 0;
+        let selectedCell = null;
+        let grid = [];
+
+        function createGrid() {
+            const container = document.getElementById('gameContainer');
+            container.style.gridTemplateColumns = `repeat(${GRID_SIZE}, 80px)`;
+            container.innerHTML = '';
+            grid = [];
+
+            for (let y = 0; y < GRID_SIZE; y++) {
+                grid[y] = [];
+                for (let x = 0; x < GRID_SIZE; x++) {
+                    const cell = document.createElement('div');
+                    cell.className = 'cell';
+                    cell.dataset.x = x;
+                    cell.dataset.y = y;
+                    cell.addEventListener('click', () => handleCellClick(x, y));
+                    container.appendChild(cell);
+                    grid[y][x] = null;
+                }
+            }
+        }
+
+        function startGame() {
+            createGrid();
+            score = 0;
+            moves = 0;
+            updateStats();
+            document.getElementById('gameOver').style.display = 'none';
+
+            // Place initial numbers randomly
+            INITIAL_NUMBERS.forEach(() => {
+                placeRandomNumber();
+            });
+        }
+
+        function placeRandomNumber() {
+            const emptyCells = [];
+            for (let y = 0; y < GRID_SIZE; y++) {
+                for (let x = 0; x < GRID_SIZE; x++) {
+                    if (!grid[y][x]) {
+                        emptyCells.push({x, y});
+                    }
+                }
+            }
+
+            if (emptyCells.length > 0) {
+                const {x, y} = emptyCells[Math.floor(Math.random() * emptyCells.length)];
+                const value = Math.random() < 0.7 ? 1 : 2;
+                grid[y][x] = value;
+                updateCell(x, y, value);
+            }
+        }
+
+        function updateCell(x, y, value) {
+            const cell = document.querySelector(`[data-x="${x}"][data-y="${y}"]`);
+            cell.className = `cell value-${value}`;
+            cell.textContent = value || '';
+        }
+
+        function handleCellClick(x, y) {
+            if (!grid[y][x]) return;
+
+            const cell = document.querySelector(`[data-x="${x}"][data-y="${y}"]`);
+
+            if (selectedCell) {
+                const prevX = parseInt(selectedCell.dataset.x);
+                const prevY = parseInt(selectedCell.dataset.y);
+
+                if (isAdjacent(prevX, prevY, x, y) && grid[prevY][prevX] === grid[y][x]) {
+                    mergeCells(prevX, prevY, x, y);
+                } else {
+                    selectedCell.classList.remove('selected');
+                }
+                selectedCell = null;
+            } else {
+                selectedCell = cell;
+                cell.classList.add('selected');
+            }
+        }
+
+        function isAdjacent(x1, y1, x2, y2) {
+            const dx = Math.abs(x1 - x2);
+            const dy = Math.abs(y1 - y2);
+            return (dx === 1 && dy === 0) || (dx === 0 && dy === 1);
+        }
+
+        function mergeCells(x1, y1, x2, y2) {
+            const value = grid[y1][x1] * 2;
+            grid[y1][x1] = null;
+            grid[y2][x2] = value;
+
+            updateCell(x1, y1, null);
+            updateCell(x2, y2, value);
+
+            const mergedCell = document.querySelector(`[data-x="${x2}"][data-y="${y2}"]`);
+            mergedCell.classList.add('merged');
+            setTimeout(() => mergedCell.classList.remove('merged'), 500);
+
+            score += value;
+            moves++;
+            updateStats();
+
+            document.querySelector(`[data-x="${x1}"][data-y="${y1}"]`).classList.remove('selected');
+
+            setTimeout(() => {
+                placeRandomNumber();
+                checkGameOver();
+            }, 300);
+        }
+
+        function shuffleBoard() {
+            const numbers = [];
+            for (let y = 0; y < GRID_SIZE; y++) {
+                for (let x = 0; x < GRID_SIZE; x++) {
+                    if (grid[y][x]) numbers.push(grid[y][x]);
+                    grid[y][x] = null;
+                }
+            }
+
+            numbers.sort(() => Math.random() - 0.5);
+
+            let index = 0;
+            for (let y = 0; y < GRID_SIZE; y++) {
+                for (let x = 0; x < GRID_SIZE; x++) {
+                    if (index < numbers.length) {
+                        grid[y][x] = numbers[index++];
+                        updateCell(x, y, grid[y][x]);
+                    }
+                }
+            }
+
+            moves++;
+            updateStats();
+        }
+
+        function checkGameOver() {
+            for (let y = 0; y < GRID_SIZE; y++) {
+                for (let x = 0; x < GRID_SIZE; x++) {
+                    if (!grid[y][x]) return false;
+                    
+                    // Check adjacent cells
+                    const value = grid[y][x];
+                    if ((x < GRID_SIZE - 1 && grid[y][x + 1] === value) ||
+                        (y < GRID_SIZE - 1 && grid[y + 1][x] === value)) {
+                        return false;
+                    }
+                }
+            }
+
+            document.getElementById('gameOver').style.display = 'block';
+            document.getElementById('finalScore').textContent = score;
+            return true;
+        }
+
+        function updateStats() {
+            document.getElementById('score').textContent = score;
+            document.getElementById('moves').textContent = moves;
+        }
+
+        startGame();
+    </script>
+</body>
+</html>

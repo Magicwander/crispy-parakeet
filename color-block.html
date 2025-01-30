@@ -1,0 +1,339 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Color Block Breaker</title>
+    <style>
+        body {
+            margin: 0;
+            background: #111;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            font-family: Arial, sans-serif;
+            color: white;
+        }
+
+        #gameContainer {
+            position: relative;
+            width: 400px;
+            height: 600px;
+            background: #222;
+            margin: 20px;
+            border-radius: 10px;
+            overflow: hidden;
+        }
+
+        .block {
+            position: absolute;
+            width: 40px;
+            height: 40px;
+            border-radius: 5px;
+            transition: all 0.3s ease;
+        }
+
+        #shooter {
+            position: absolute;
+            bottom: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 40px;
+            height: 40px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+
+        #nextBlock {
+            width: 40px;
+            height: 40px;
+            border-radius: 5px;
+            margin-bottom: 10px;
+        }
+
+        #arrow {
+            width: 4px;
+            height: 40px;
+            background: white;
+            transform-origin: top center;
+        }
+
+        #stats {
+            display: flex;
+            gap: 20px;
+            margin: 20px;
+            font-size: 20px;
+        }
+
+        .matched {
+            animation: pop 0.3s ease-out;
+        }
+
+        @keyframes pop {
+            0% { transform: scale(1); }
+            50% { transform: scale(1.2); }
+            100% { transform: scale(0); }
+        }
+
+        #gameOver {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background: rgba(0,0,0,0.9);
+            padding: 20px;
+            border-radius: 10px;
+            text-align: center;
+            display: none;
+        }
+
+        button {
+            padding: 10px 20px;
+            font-size: 16px;
+            background: #4CAF50;
+            border: none;
+            color: white;
+            border-radius: 5px;
+            cursor: pointer;
+            margin-top: 10px;
+        }
+
+        button:hover {
+            background: #45a049;
+        }
+    </style>
+</head>
+<body>
+    <div id="stats">
+        <div>Score: <span id="score">0</span></div>
+        <div>Level: <span id="level">1</span></div>
+    </div>
+    <div id="gameContainer">
+        <div id="shooter">
+            <div id="nextBlock"></div>
+            <div id="arrow"></div>
+        </div>
+        <div id="gameOver">
+            <h2>Game Over!</h2>
+            <p>Score: <span id="finalScore">0</span></p>
+            <button onclick="startGame()">Play Again</button>
+        </div>
+    </div>
+
+    <script>
+        const COLORS = ['#ff4444', '#44ff44', '#4444ff', '#ffff44'];
+        const GRID_SIZE = 10;
+        const BLOCK_SIZE = 40;
+        
+        let blocks = [];
+        let score = 0;
+        let level = 1;
+        let angle = 0;
+        let nextColor = getRandomColor();
+        let isGameOver = false;
+
+        function startGame() {
+            blocks = [];
+            score = 0;
+            level = 1;
+            isGameOver = false;
+            document.getElementById('gameOver').style.display = 'none';
+            createInitialBlocks();
+            updateStats();
+            nextColor = getRandomColor();
+            updateNextBlock();
+        }
+
+        function createInitialBlocks() {
+            for(let row = 0; row < 5; row++) {
+                for(let col = 0; col < GRID_SIZE; col++) {
+                    createBlock(col * BLOCK_SIZE, row * BLOCK_SIZE, getRandomColor());
+                }
+            }
+        }
+
+        function createBlock(x, y, color) {
+            const block = document.createElement('div');
+            block.className = 'block';
+            block.style.left = x + 'px';
+            block.style.top = y + 'px';
+            block.style.backgroundColor = color;
+            document.getElementById('gameContainer').appendChild(block);
+            blocks.push({ element: block, x, y, color });
+        }
+
+        function getRandomColor() {
+            return COLORS[Math.floor(Math.random() * COLORS.length)];
+        }
+
+        function updateNextBlock() {
+            document.getElementById('nextBlock').style.backgroundColor = nextColor;
+        }
+
+        function shootBlock() {
+            if(isGameOver) return;
+
+            const radians = angle * Math.PI / 180;
+            const speed = 10;
+            const dx = Math.sin(radians) * speed;
+            const dy = -Math.cos(radians) * speed;
+
+            const block = {
+                element: document.createElement('div'),
+                x: 180,
+                y: 560,
+                dx,
+                dy,
+                color: nextColor
+            };
+
+            block.element.className = 'block';
+            block.element.style.backgroundColor = nextColor;
+            document.getElementById('gameContainer').appendChild(block.element);
+            updateBlockPosition(block);
+
+            const moveInterval = setInterval(() => {
+                block.x += block.dx;
+                block.y += block.dy;
+
+                // Wall collisions
+                if(block.x <= 0 || block.x >= 360) {
+                    block.dx *= -1;
+                }
+
+                // Block collisions
+                const collision = checkCollision(block);
+                if(collision || block.y <= 0) {
+                    clearInterval(moveInterval);
+                    if(collision) {
+                        snapToGrid(block);
+                        checkMatches(block);
+                    } else {
+                        addBlockToTop(block);
+                    }
+                    nextColor = getRandomColor();
+                    updateNextBlock();
+                    checkGameOver();
+                }
+
+                updateBlockPosition(block);
+            }, 16);
+        }
+
+        function updateBlockPosition(block) {
+            block.element.style.left = block.x + 'px';
+            block.element.style.top = block.y + 'px';
+        }
+
+        function checkCollision(block) {
+            return blocks.some(b => {
+                const dx = Math.abs(block.x - b.x);
+                const dy = Math.abs(block.y - b.y);
+                return dx < BLOCK_SIZE && dy < BLOCK_SIZE;
+            });
+        }
+
+        function snapToGrid(block) {
+            block.x = Math.round(block.x / BLOCK_SIZE) * BLOCK_SIZE;
+            block.y = Math.round(block.y / BLOCK_SIZE) * BLOCK_SIZE;
+            blocks.push(block);
+        }
+
+        function addBlockToTop(block) {
+            block.x = Math.round(block.x / BLOCK_SIZE) * BLOCK_SIZE;
+            block.y = 0;
+            blocks.push(block);
+        }
+
+        function checkMatches(block) {
+            const matches = findMatches(block);
+            if(matches.length >= 3) {
+                matches.forEach(b => {
+                    b.element.classList.add('matched');
+                    setTimeout(() => b.element.remove(), 300);
+                });
+                blocks = blocks.filter(b => !matches.includes(b));
+                score += matches.length * 10;
+                checkLevelUp();
+                updateStats();
+            }
+        }
+
+        function findMatches(block) {
+            const matches = [block];
+            const checked = new Set();
+
+            function check(x, y, color) {
+                const key = `${x},${y}`;
+                if(checked.has(key)) return;
+                checked.add(key);
+
+                const match = blocks.find(b => 
+                    b.x === x && b.y === y && b.color === color
+                );
+
+                if(match) {
+                    matches.push(match);
+                    check(x + BLOCK_SIZE, y, color);
+                    check(x - BLOCK_SIZE, y, color);
+                    check(x, y + BLOCK_SIZE, color);
+                    check(x, y - BLOCK_SIZE, color);
+                }
+            }
+
+            check(block.x + BLOCK_SIZE, block.y, block.color);
+            check(block.x - BLOCK_SIZE, block.y, block.color);
+            check(block.x, block.y + BLOCK_SIZE, block.color);
+            check(block.x, block.y - BLOCK_SIZE, block.color);
+
+            return matches;
+        }
+
+        function checkLevelUp() {
+            if(score >= level * 100) {
+                level++;
+                showLevelUp();
+            }
+        }
+
+        function showLevelUp() {
+            const msg = document.createElement('div');
+            msg.style.position = 'absolute';
+            msg.style.left = '50%';
+            msg.style.top = '50%';
+            msg.style.transform = 'translate(-50%, -50%)';
+            msg.style.fontSize = '36px';
+            msg.style.color = '#4CAF50';
+            msg.textContent = `Level ${level}!`;
+            document.getElementById('gameContainer').appendChild(msg);
+            setTimeout(() => msg.remove(), 1000);
+        }
+
+        function checkGameOver() {
+            if(blocks.some(b => b.y >= 560)) {
+                isGameOver = true;
+                document.getElementById('gameOver').style.display = 'block';
+                document.getElementById('finalScore').textContent = score;
+            }
+        }
+
+        function updateStats() {
+            document.getElementById('score').textContent = score;
+            document.getElementById('level').textContent = level;
+        }
+
+        // Controls
+        document.addEventListener('mousemove', (e) => {
+            const rect = document.getElementById('gameContainer').getBoundingClientRect();
+            const x = e.clientX - rect.left - 200;
+            const y = 560 - (e.clientY - rect.top);
+            angle = Math.atan2(x, y) * 180 / Math.PI;
+            document.getElementById('arrow').style.transform = `rotate(${angle}deg)`;
+        });
+
+        document.addEventListener('click', shootBlock);
+
+        // Start the game
+        startGame();
+    </script>
+</body>
+</html>

@@ -1,0 +1,378 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>ColorShift Maze</title>
+    <style>
+        body {
+            margin: 0;
+            background: #0a0a2a;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            font-family: Arial, sans-serif;
+            color: white;
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        #gameContainer {
+            display: grid;
+            gap: 4px;
+            padding: 10px;
+            background: rgba(255,255,255,0.1);
+            border-radius: 10px;
+            box-shadow: 0 0 30px rgba(0,0,0,0.5);
+        }
+
+        .block {
+            width: 60px;
+            height: 60px;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            font-size: 24px;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .block::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: linear-gradient(135deg, rgba(255,255,255,0.2), transparent);
+            z-index: 1;
+        }
+
+        .block:hover {
+            transform: scale(1.05);
+            box-shadow: 0 0 15px currentColor;
+        }
+
+        .block.player {
+            animation: pulse 1.5s infinite;
+        }
+
+        @keyframes pulse {
+            0%, 100% { transform: scale(1); }
+            50% { transform: scale(1.1); }
+        }
+
+        .block.wall {
+            background: #333;
+            cursor: not-allowed;
+        }
+
+        .block.exit {
+            background: linear-gradient(45deg, #4CAF50, #45a049);
+            animation: glow 2s infinite;
+        }
+
+        @keyframes glow {
+            0%, 100% { box-shadow: 0 0 10px #4CAF50; }
+            50% { box-shadow: 0 0 20px #4CAF50; }
+        }
+
+        #stats {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 20px;
+            margin: 20px;
+            padding: 15px;
+            background: rgba(255,255,255,0.1);
+            border-radius: 10px;
+            width: 500px;
+        }
+
+        .stat {
+            text-align: center;
+        }
+
+        .stat-value {
+            font-size: 24px;
+            font-weight: bold;
+            color: #4CAF50;
+            margin-top: 5px;
+        }
+
+        button {
+            padding: 12px 25px;
+            font-size: 18px;
+            background: linear-gradient(45deg, #4CAF50, #45a049);
+            border: none;
+            color: white;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            margin: 10px;
+        }
+
+        button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(76,175,80,0.4);
+        }
+
+        .power-meter {
+            width: 200px;
+            height: 20px;
+            background: rgba(255,255,255,0.1);
+            border-radius: 10px;
+            overflow: hidden;
+            margin: 10px auto;
+        }
+
+        .power-fill {
+            height: 100%;
+            width: 0%;
+            background: linear-gradient(90deg, #4CAF50, #8BC34A);
+            transition: width 0.3s ease;
+        }
+
+        .level-complete {
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background: rgba(0,0,0,0.9);
+            padding: 30px;
+            border-radius: 10px;
+            text-align: center;
+            display: none;
+        }
+
+        .particle {
+            position: absolute;
+            pointer-events: none;
+            animation: particle 0.8s ease-out forwards;
+        }
+
+        @keyframes particle {
+            0% { transform: scale(1) rotate(0deg); opacity: 1; }
+            100% { transform: scale(0) rotate(360deg); opacity: 0; }
+        }
+    </style>
+</head>
+<body>
+    <div id="stats">
+        <div class="stat">
+            Level
+            <div id="level" class="stat-value">1</div>
+        </div>
+        <div class="stat">
+            Moves
+            <div id="moves" class="stat-value">0</div>
+        </div>
+        <div class="stat">
+            Score
+            <div id="score" class="stat-value">0</div>
+        </div>
+        <div class="stat">
+            Power
+            <div class="power-meter">
+                <div class="power-fill" id="powerFill"></div>
+            </div>
+        </div>
+    </div>
+
+    <div id="gameContainer"></div>
+
+    <div id="controls">
+        <button onclick="startGame()">New Game</button>
+        <button onclick="usePower()">Use Power</button>
+    </div>
+
+    <div class="level-complete" id="levelComplete">
+        <h2>Level Complete!</h2>
+        <p>Score: <span id="levelScore">0</span></p>
+        <button onclick="nextLevel()">Next Level</button>
+    </div>
+
+    <script>
+        const GRID_SIZE = 8;
+        const COLORS = ['#FF4444', '#44FF44', '#4444FF', '#FFFF44', '#FF44FF'];
+        
+        let grid = [];
+        let playerPos = { x: 0, y: 0 };
+        let level = 1;
+        let moves = 0;
+        let score = 0;
+        let power = 0;
+        let isGameActive = false;
+
+        function createGrid() {
+            const container = document.getElementById('gameContainer');
+            container.style.gridTemplateColumns = `repeat(${GRID_SIZE}, 60px)`;
+            container.innerHTML = '';
+            grid = [];
+
+            // Generate maze layout
+            for (let y = 0; y < GRID_SIZE; y++) {
+                grid[y] = [];
+                for (let x = 0; x < GRID_SIZE; x++) {
+                    const block = document.createElement('div');
+                    block.className = 'block';
+                    
+                    // Add walls randomly
+                    if (Math.random() < 0.2 && !(x === 0 && y === 0)) {
+                        block.classList.add('wall');
+                        grid[y][x] = 'wall';
+                    } else {
+                        const color = COLORS[Math.floor(Math.random() * COLORS.length)];
+                        block.style.backgroundColor = color;
+                        grid[y][x] = color;
+                    }
+
+                    block.onclick = () => handleBlockClick(x, y);
+                    container.appendChild(block);
+                }
+            }
+
+            // Set player starting position
+            playerPos = { x: 0, y: 0 };
+            updatePlayerPosition();
+
+            // Set exit point
+            const exit = document.querySelector(`.block:nth-child(${GRID_SIZE * GRID_SIZE})`);
+            exit.className = 'block exit';
+            grid[GRID_SIZE-1][GRID_SIZE-1] = 'exit';
+        }
+
+        function handleBlockClick(x, y) {
+            if (!isGameActive || grid[y][x] === 'wall') return;
+
+            const dx = Math.abs(x - playerPos.x);
+            const dy = Math.abs(y - playerPos.y);
+
+            if ((dx === 1 && dy === 0) || (dx === 0 && dy === 1)) {
+                movePlayer(x, y);
+            }
+        }
+
+        function movePlayer(x, y) {
+            const currentColor = grid[playerPos.y][playerPos.x];
+            const targetColor = grid[y][x];
+
+            if (targetColor === 'exit') {
+                completeLevel();
+                return;
+            }
+
+            if (currentColor === targetColor || power >= 100) {
+                // Valid move
+                if (power >= 100) power = 0;
+                updatePowerMeter();
+                
+                const oldPos = {...playerPos};
+                playerPos = { x, y };
+                moves++;
+                score += 10;
+                power = Math.min(100, power + 10);
+                
+                updateStats();
+                updatePlayerPosition();
+                createMoveParticles(oldPos);
+            }
+        }
+
+        function createMoveParticles(oldPos) {
+            const blockSize = 60;
+            const startX = oldPos.x * (blockSize + 4) + blockSize/2;
+            const startY = oldPos.y * (blockSize + 4) + blockSize/2;
+
+            for (let i = 0; i < 8; i++) {
+                const particle = document.createElement('div');
+                particle.className = 'particle';
+                particle.style.width = '10px';
+                particle.style.height = '10px';
+                particle.style.backgroundColor = grid[oldPos.y][oldPos.x];
+                particle.style.left = `${startX}px`;
+                particle.style.top = `${startY}px`;
+                
+                const angle = (i / 8) * Math.PI * 2;
+                const distance = 40;
+                particle.style.setProperty('--tx', `${Math.cos(angle) * distance}px`);
+                particle.style.setProperty('--ty', `${Math.sin(angle) * distance}px`);
+                
+                document.getElementById('gameContainer').appendChild(particle);
+                setTimeout(() => particle.remove(), 800);
+            }
+        }
+
+        function updatePlayerPosition() {
+            const blocks = document.querySelectorAll('.block');
+            blocks.forEach(b => b.classList.remove('player'));
+            
+            const playerBlock = blocks[playerPos.y * GRID_SIZE + playerPos.x];
+            playerBlock.classList.add('player');
+        }
+
+        function usePower() {
+            if (power < 100) return;
+            
+            power = 0;
+            updatePowerMeter();
+            
+            // Power effect: Clear all blocks of the same color
+            const currentColor = grid[playerPos.y][playerPos.x];
+            const blocks = document.querySelectorAll('.block');
+            
+            blocks.forEach((block, index) => {
+                const y = Math.floor(index / GRID_SIZE);
+                const x = index % GRID_SIZE;
+                
+                if (grid[y][x] === currentColor) {
+                    const newColor = COLORS[Math.floor(Math.random() * COLORS.length)];
+                    grid[y][x] = newColor;
+                    block.style.backgroundColor = newColor;
+                    createMoveParticles({x, y});
+                }
+            });
+        }
+
+        function completeLevel() {
+            isGameActive = false;
+            const bonus = Math.max(0, 1000 - moves * 10);
+            score += bonus;
+            
+            document.getElementById('levelScore').textContent = score;
+            document.getElementById('levelComplete').style.display = 'block';
+        }
+
+        function nextLevel() {
+            level++;
+            document.getElementById('levelComplete').style.display = 'none';
+            startGame();
+        }
+
+        function updateStats() {
+            document.getElementById('level').textContent = level;
+            document.getElementById('moves').textContent = moves;
+            document.getElementById('score').textContent = score;
+            updatePowerMeter();
+        }
+
+        function updatePowerMeter() {
+            document.getElementById('powerFill').style.width = `${power}%`;
+        }
+
+        function startGame() {
+            if (level === 1) {
+                moves = 0;
+                score = 0;
+                power = 0;
+            }
+            createGrid();
+            isGameActive = true;
+            updateStats();
+        }
+
+        // Start the game
+        startGame();
+    </script>
+</body>
+</html>

@@ -1,0 +1,142 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Glassy Bubble Pop</title>
+    <style>
+        body {
+            margin: 0;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            background: linear-gradient(135deg, #6dd5ed, #2193b0);
+            font-family: 'Arial', sans-serif;
+        }
+
+        .game-container {
+            position: relative;
+            width: 600px;
+            height: 600px;
+            overflow: hidden;
+            border-radius: 20px;
+            background: rgba(255, 255, 255, 0.2);
+            backdrop-filter: blur(10px);
+            box-shadow: 0 4px 30px rgba(0, 0, 0, 0.1);
+        }
+
+        .hud {
+            position: absolute;
+            top: 10px;
+            left: 10px;
+            color: white;
+            font-size: 1.2em;
+        }
+
+        .bubble {
+            width: 50px;
+            height: 50px;
+            border-radius: 50%;
+            position: absolute;
+            cursor: pointer;
+            transition: transform 0.2s ease-in-out, opacity 0.2s ease-in-out;
+        }
+
+        .bubble:hover {
+            transform: scale(1.1);
+        }
+    </style>
+</head>
+<body>
+    <div class="game-container" id="gameContainer">
+        <div class="hud">
+            Score: <span id="score">0</span> | Time: <span id="timer">60</span>s
+        </div>
+    </div>
+
+    <script>
+        const gameContainer = document.getElementById('gameContainer');
+        const scoreElement = document.getElementById('score');
+        const timerElement = document.getElementById('timer');
+
+        let score = 0;
+        let timeLeft = 60;
+
+        // Create and display a bubble
+        function createBubble() {
+            const bubble = document.createElement('div');
+            bubble.className = 'bubble';
+            bubble.style.backgroundColor = getRandomColor();
+            
+            // Position the bubble randomly within the game container
+            const x = Math.random() * (gameContainer.clientWidth - 50);
+            const y = Math.random() * (gameContainer.clientHeight - 50);
+            
+            bubble.style.left = x + 'px';
+            bubble.style.top = y + 'px';
+
+            // Add click event to the bubble
+            bubble.addEventListener('click', () => {
+                score += 10; // Increase score for popping the bubble
+                scoreElement.textContent = score; // Update score display
+                bubble.remove(); // Remove the popped bubble
+                createBubble(); // Create a new bubble after popping one
+            });
+
+            gameContainer.appendChild(bubble);
+
+            // Remove the bubble after a certain time if not clicked
+            setTimeout(() => {
+                if (bubble.parentNode) {
+                    bubble.remove();
+                    createBubble(); // Create a new bubble if the previous one was not clicked
+                }
+            }, 2000); // Bubbles disappear after 2 seconds
+        }
+
+        // Get a random color for the bubbles
+        function getRandomColor() {
+            const colors = ['#ff6b6b', '#4ecdc4', '#ffcc00', '#ff69b4', '#00bfff'];
+            return colors[Math.floor(Math.random() * colors.length)];
+        }
+
+        // Timer function
+        function startTimer() {
+            const timerInterval = setInterval(() => {
+                timeLeft--;
+                timerElement.textContent = timeLeft;
+
+                if (timeLeft <= 0) {
+                    clearInterval(timerInterval);
+                    alert(`Time's up! Your final score is ${score}.`);
+                    resetGame();
+                }
+                
+                createBubble(); // Create new bubbles every second
+
+            }, 1000);
+        }
+
+        // Reset game function
+        function resetGame() {
+            score = 0;
+            timeLeft = 60;
+
+            scoreElement.textContent = score;
+
+           // Clear existing bubbles from the game container
+           const bubbles = document.querySelectorAll('.bubble');
+           bubbles.forEach(bubble => bubble.remove());
+           
+           startTimer(); // Restart timer
+           for (let i = 0; i < 5; i++) { // Create initial bubbles
+               createBubble();
+           }
+        }
+
+        // Initialize game
+        resetGame();
+    </script>
+</body>
+</html>

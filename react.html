@@ -1,0 +1,203 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Glassy Reaction</title>
+    <style>
+        body {
+            margin: 0;
+            min-height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            background: linear-gradient(135deg, #6B46C1, #4299E1);
+            font-family: 'Arial', sans-serif;
+        }
+
+        #gameContainer {
+            position: relative;
+            width: 600px;
+            height: 400px;
+            background: rgba(255, 255, 255, 0.1);
+            backdrop-filter: blur(10px);
+            border-radius: 20px;
+            border: 1px solid rgba(255, 255, 255, 0.3);
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
+            overflow: hidden;
+        }
+
+        .target {
+            position: absolute;
+            width: 50px;
+            height: 50px;
+            background: rgba(255, 255, 255, 0.15);
+            border-radius: 50%;
+            border: 2px solid rgba(255, 255, 255, 0.3);
+            cursor: pointer;
+            transition: transform 0.2s, opacity 0.2s;
+            box-shadow: 0 0 20px rgba(255, 255, 255, 0.2);
+        }
+
+        .target:hover {
+            transform: scale(1.1);
+            background: rgba(255, 255, 255, 0.25);
+        }
+
+        .target:active {
+            transform: scale(0.9);
+        }
+
+        #hud {
+            position: absolute;
+            top: 20px;
+            width: 100%;
+            display: flex;
+            justify-content: space-around;
+            color: white;
+            font-size: 20px;
+            text-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+        }
+
+        #controls {
+            position: absolute;
+            bottom: 30px;
+            width: 100%;
+            text-align: center;
+        }
+
+        button {
+            background: rgba(255, 255, 255, 0.2);
+            border: none;
+            padding: 12px 30px;
+            border-radius: 8px;
+            color: white;
+            cursor: pointer;
+            font-size: 16px;
+            transition: all 0.3s;
+            backdrop-filter: blur(5px);
+        }
+
+        button:hover {
+            background: rgba(255, 255, 255, 0.3);
+            transform: translateY(-2px);
+        }
+
+        #gameOver {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background: rgba(255, 255, 255, 0.2);
+            padding: 30px 50px;
+            border-radius: 20px;
+            text-align: center;
+            backdrop-filter: blur(10px);
+            display: none;
+            color: white;
+        }
+    </style>
+</head>
+<body>
+    <div id="gameContainer">
+        <div id="hud">
+            <div>Score: <span id="score">0</span></div>
+            <div>Time: <span id="timer">30</span>s</div>
+            <div>Best: <span id="highscore">0</span></div>
+        </div>
+        <div id="controls">
+            <button onclick="startGame()">Start Game</button>
+        </div>
+        <div id="gameOver">
+            <h2>Time's Up!</h2>
+            <p>Final Score: <span id="finalScore">0</span></p>
+            <button onclick="startGame()">Play Again</button>
+        </div>
+    </div>
+
+    <script>
+        const gameContainer = document.getElementById('gameContainer');
+        const scoreElement = document.getElementById('score');
+        const timerElement = document.getElementById('timer');
+        const highscoreElement = document.getElementById('highscore');
+        const gameOverScreen = document.getElementById('gameOver');
+        const finalScoreElement = document.getElementById('finalScore');
+
+        let score = 0;
+        let timeLeft = 30;
+        let gameActive = false;
+        let gameInterval;
+        let targets = [];
+        let highscore = localStorage.getItem('highscore') || 0;
+        highscoreElement.textContent = highscore;
+
+        function createTarget() {
+            const target = document.createElement('div');
+            target.className = 'target';
+            
+            // Random position within container (accounting for target size)
+            const x = Math.random() * (gameContainer.offsetWidth - 60);
+            const y = Math.random() * (gameContainer.offsetHeight - 100) + 50;
+            
+            target.style.left = x + 'px';
+            target.style.top = y + 'px';
+            
+            target.addEventListener('click', () => {
+                if(gameActive) {
+                    score += 10;
+                    scoreElement.textContent = score;
+                    target.remove();
+                    targets = targets.filter(t => t !== target);
+                }
+            });
+
+            gameContainer.appendChild(target);
+            targets.push(target);
+        }
+
+        function startGame() {
+            // Reset game state
+            gameActive = true;
+            score = 0;
+            timeLeft = 30;
+            scoreElement.textContent = '0';
+            timerElement.textContent = '30';
+            gameOverScreen.style.display = 'none';
+            
+            // Clear existing targets
+            targets.forEach(target => target.remove());
+            targets = [];
+            
+            // Start game intervals
+            clearInterval(gameInterval);
+            gameInterval = setInterval(() => {
+                if(timeLeft <= 0) {
+                    endGame();
+                    return;
+                }
+                timeLeft--;
+                timerElement.textContent = timeLeft;
+                
+                // Create targets more frequently as time decreases
+                if(Math.random() < 0.4 + (30 - timeLeft)/100) {
+                    createTarget();
+                }
+            }, 1000);
+        }
+
+        function endGame() {
+            gameActive = false;
+            clearInterval(gameInterval);
+            targets.forEach(target => target.remove());
+            targets = [];
+            
+            if(score > highscore) {
+                highscore = score;
+                localStorage.setItem('highscore', highscore);
+                highscoreElement.textContent = highscore;
+            }
+            
+            finalScoreElement.textContent = score;
+            gameOverScreen.style.display = 'block';
+        }
+    </script>
+</body>
+</html>

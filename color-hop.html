@@ -1,0 +1,196 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Color Hopper</title>
+    <style>
+        body {
+            margin: 0;
+            overflow: hidden;
+            background: #1a1a1a;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            font-family: Arial, sans-serif;
+        }
+
+        #gameContainer {
+            position: relative;
+            width: 400px;
+            height: 600px;
+            background: #000;
+            border-radius: 10px;
+            overflow: hidden;
+        }
+
+        #player {
+            position: absolute;
+            width: 30px;
+            height: 30px;
+            border-radius: 50%;
+            bottom: 50px;
+            left: 185px;
+            box-shadow: 0 0 15px rgba(255,255,255,0.5);
+            transition: all 0.1s;
+            z-index: 2;
+        }
+
+        .tile {
+            position: absolute;
+            width: 80px;
+            height: 30px;
+            border-radius: 5px;
+            animation: fall 3s linear infinite;
+        }
+
+        @keyframes fall {
+            from { top: -30px; }
+            to { top: 600px; }
+        }
+
+        #score {
+            position: absolute;
+            top: 20px;
+            left: 20px;
+            color: white;
+            font-size: 24px;
+            z-index: 3;
+        }
+
+        #gameOver {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            color: white;
+            font-size: 32px;
+            text-align: center;
+            display: none;
+            z-index: 4;
+        }
+
+        #restart {
+            color: #4CAF50;
+            cursor: pointer;
+            margin-top: 20px;
+        }
+    </style>
+</head>
+<body>
+    <div id="gameContainer">
+        <div id="score">Score: 0</div>
+        <div id="player"></div>
+        <div id="gameOver">
+            Game Over!<br>
+            <span id="restart" onclick="restartGame()">Click to Restart</span>
+        </div>
+    </div>
+
+    <script>
+        const colors = ['#ff0000', '#00ff00', '#0000ff', '#ffff00'];
+        let score = 0;
+        let gameActive = true;
+        let currentColorIndex = 0;
+        let speed = 3;
+
+        const player = document.getElementById('player');
+        const scoreElement = document.getElementById('score');
+        const gameOverScreen = document.getElementById('gameOver');
+
+        function createTile() {
+            const tile = document.createElement('div');
+            tile.className = 'tile';
+            tile.style.left = Math.random() * 320 + 'px';
+            tile.style.backgroundColor = colors[Math.floor(Math.random() * colors.length)];
+            tile.style.setProperty('--delay', Math.random() * 2 + 's');
+            tile.style.animationDuration = speed + 's';
+            gameContainer.appendChild(tile);
+
+            tile.addEventListener('animationend', () => {
+                tile.remove();
+                if(gameActive) score += 10;
+                scoreElement.textContent = `Score: ${score}`;
+            });
+        }
+
+        function updatePlayerColor() {
+            currentColorIndex = (currentColorIndex + 1) % colors.length;
+            player.style.backgroundColor = colors[currentColorIndex];
+            player.style.boxShadow = `0 0 15px ${colors[currentColorIndex]}`;
+        }
+
+        function checkCollision() {
+            const playerRect = player.getBoundingClientRect();
+            const tiles = document.getElementsByClassName('tile');
+            
+            for(let tile of tiles) {
+                const tileRect = tile.getBoundingClientRect();
+                if(
+                    playerRect.left < tileRect.right &&
+                    playerRect.right > tileRect.left &&
+                    playerRect.top < tileRect.bottom &&
+                    playerRect.bottom > tileRect.top
+                ) {
+                    if(tile.style.backgroundColor !== player.style.backgroundColor) {
+                        gameOver();
+                    }
+                }
+            }
+        }
+
+        function gameOver() {
+            gameActive = false;
+            gameOverScreen.style.display = 'block';
+            const tiles = document.getElementsByClassName('tile');
+            while(tiles.length > 0) tiles[0].remove();
+        }
+
+        function restartGame() {
+            gameActive = true;
+            score = 0;
+            speed = 3;
+            currentColorIndex = 0;
+            scoreElement.textContent = 'Score: 0';
+            gameOverScreen.style.display = 'none';
+            player.style.backgroundColor = colors[0];
+            player.style.boxShadow = `0 0 15px ${colors[0]}`;
+            gameLoop();
+        }
+
+        function gameLoop() {
+            if(!gameActive) return;
+            
+            checkCollision();
+            requestAnimationFrame(gameLoop);
+        }
+
+        // Controls
+        document.addEventListener('keydown', (e) => {
+            if(e.code === 'Space' && gameActive) {
+                updatePlayerColor();
+            }
+        });
+
+        // Touch controls for mobile
+        document.addEventListener('touchstart', (e) => {
+            if(gameActive) {
+                e.preventDefault();
+                updatePlayerColor();
+            }
+        });
+
+        // Start game
+        setInterval(() => {
+            if(gameActive) {
+                createTile();
+                speed = Math.max(1.5, 3 - score/500);
+            }
+        }, 1500);
+
+        setInterval(updatePlayerColor, 2000);
+        gameLoop();
+    </script>
+</body>
+</html>

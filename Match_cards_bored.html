@@ -1,0 +1,199 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Glassy Match - Card Game</title>
+    <style>
+        body {
+            margin: 0;
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            background: linear-gradient(45deg, #1a1a1a, #2d2d2d);
+            font-family: Arial, sans-serif;
+            color: white;
+        }
+
+        .game-container {
+            position: relative;
+            padding: 20px;
+            background: rgba(255, 255, 255, 0.05);
+            border-radius: 16px;
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            margin-top: 30px;
+            box-shadow: 0 4px 30px rgba(0, 0, 0, 0.1);
+        }
+
+        .stats {
+            display: flex;
+            gap: 20px;
+            margin-bottom: 20px;
+        }
+
+        .card-grid {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 15px;
+        }
+
+        .card {
+            width: 80px;
+            height: 120px;
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 8px;
+            cursor: pointer;
+            position: relative;
+            transform-style: preserve-3d;
+            transition: all 0.3s ease;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 24px;
+        }
+
+        .card.flipped {
+            background: rgba(255, 255, 255, 0.2);
+            transform: rotateY(180deg);
+        }
+
+        .card.matched {
+            background: rgba(0, 255, 0, 0.2);
+            cursor: default;
+        }
+
+        .card::before {
+            content: "";
+            position: absolute;
+            inset: 0;
+            border-radius: 8px;
+            padding: 2px;
+            background: linear-gradient(45deg, rgba(255,255,255,0.3), transparent);
+            -webkit-mask: 
+                linear-gradient(#fff 0 0) content-box, 
+                linear-gradient(#fff 0 0);
+            mask-composite: exclude;
+        }
+
+        button {
+            padding: 10px 20px;
+            margin-top: 20px;
+            background: rgba(255, 255, 255, 0.1);
+            border: none;
+            border-radius: 5px;
+            color: white;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+
+        button:hover {
+            background: rgba(255, 255, 255, 0.2);
+        }
+    </style>
+</head>
+<body>
+    <div class="game-container">
+        <div class="stats">
+            <div>Moves: <span id="moves">0</span></div>
+            <div>Time: <span id="time">0</span>s</div>
+        </div>
+        <div class="card-grid" id="grid"></div>
+        <button onclick="startGame()">New Game</button>
+    </div>
+
+    <script>
+        let flippedCards = [];
+        let moves = 0;
+        let timer;
+        let seconds = 0;
+        const colors = ['#ff6b6b', '#4ecdc4', '#45b7d1', '#96ceb4', '#ffeead', '#ff9999'];
+        const symbols = ['♦', '♠', '♥', '♣', '★', '✦'];
+
+        function createCard(value, color, symbol) {
+            const card = document.createElement('div');
+            card.className = 'card';
+            card.dataset.value = value;
+            card.dataset.color = color;
+            card.dataset.symbol = symbol;
+            card.innerHTML = `
+                <div style="color: ${color}; font-size: 32px">${symbol}</div>
+                <div style="color: ${color}">${value}</div>
+            `;
+            card.addEventListener('click', () => handleCardClick(card));
+            return card;
+        }
+
+        function handleCardClick(card) {
+            if (card.classList.contains('flipped') || flippedCards.length === 2) return;
+
+            card.classList.add('flipped');
+            flippedCards.push(card);
+
+            if (flippedCards.length === 2) {
+                moves++;
+                document.getElementById('moves').textContent = moves;
+                checkMatch();
+            }
+        }
+
+        function checkMatch() {
+            const [card1, card2] = flippedCards;
+            const isMatch = card1.dataset.value === card2.dataset.value && 
+                          card1.dataset.color === card2.dataset.color;
+
+            if (isMatch) {
+                card1.classList.add('matched');
+                card2.classList.add('matched');
+                flippedCards = [];
+                checkWin();
+            } else {
+                setTimeout(() => {
+                    card1.classList.remove('flipped');
+                    card2.classList.remove('flipped');
+                    flippedCards = [];
+                }, 1000);
+            }
+        }
+
+        function checkWin() {
+            const matched = document.querySelectorAll('.matched').length;
+            if (matched === 16) {
+                clearInterval(timer);
+                alert(`You won in ${seconds} seconds with ${moves} moves!`);
+            }
+        }
+
+        function startGame() {
+            const grid = document.getElementById('grid');
+            grid.innerHTML = '';
+            flippedCards = [];
+            moves = 0;
+            seconds = 0;
+            document.getElementById('moves').textContent = '0';
+            document.getElementById('time').textContent = '0';
+            clearInterval(timer);
+            timer = setInterval(() => {
+                seconds++;
+                document.getElementById('time').textContent = seconds;
+            }, 1000);
+
+            // Create pairs
+            const cards = [];
+            for (let i = 1; i <= 8; i++) {
+                const color = colors[Math.floor(Math.random() * colors.length)];
+                const symbol = symbols[Math.floor(Math.random() * symbols.length)];
+                cards.push(createCard(i, color, symbol));
+                cards.push(createCard(i, color, symbol));
+            }
+
+            // Shuffle and add to grid
+            cards.sort(() => Math.random() - 0.5);
+            cards.forEach(card => grid.appendChild(card));
+        }
+
+        // Start initial game
+        startGame();
+    </script>
+</body>
+</html>

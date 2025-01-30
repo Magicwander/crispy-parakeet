@@ -1,0 +1,439 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Neon Dino Runner</title>
+    <link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --primary: #2c3e50;
+            --accent: #3498db;
+            --ground: #34495e;
+            --text: #ecf0f1;
+            --dino-color: #e74c3c;
+            --obstacle-color: #2ecc71;
+            --jump-color: #f1c40f;
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            min-height: 100vh;
+            background: #1a1a2e;
+            font-family: 'Press Start 2P', monospace;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            flex-direction: column;
+            overflow: hidden;
+            color: var(--text);
+        }
+
+        .game-container {
+            width: 800px;
+            height: 300px;
+            position: relative;
+            overflow: hidden;
+            background: rgba(255, 255, 255, 0.05);
+            border: 2px solid var(--accent);
+            border-radius: 10px;
+            box-shadow: 0 0 20px rgba(52, 152, 219, 0.3);
+        }
+
+        .dino {
+            width: 50px;
+            height: 60px;
+            position: absolute;
+            bottom: 0;
+            left: 50px;
+            background: var(--dino-color);
+            border-radius: 5px;
+            transition: background-color 0.3s;
+        }
+
+        .dino::after {
+            content: '';
+            position: absolute;
+            bottom: -10px;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 40px;
+            height: 4px;
+            background: var(--dino-color);
+            border-radius: 50%;
+            filter: blur(4px);
+            opacity: 0.5;
+        }
+
+        .dino.jump {
+            animation: jump 0.5s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+
+        @keyframes jump {
+            0% { 
+                transform: translateY(0);
+                filter: brightness(1);
+            }
+            50% { 
+                transform: translateY(-120px);
+                filter: brightness(1.5);
+            }
+            100% { 
+                transform: translateY(0);
+                filter: brightness(1);
+            }
+        }
+
+        .obstacle {
+            width: 30px;
+            height: 50px;
+            position: absolute;
+            bottom: 0;
+            right: -50px;
+            background: var(--obstacle-color);
+            border-radius: 5px;
+            animation: moveLeft linear infinite;
+        }
+
+        .obstacle::after {
+            content: '';
+            position: absolute;
+            bottom: -10px;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 20px;
+            height: 4px;
+            background: var(--obstacle-color);
+            border-radius: 50%;
+            filter: blur(4px);
+            opacity: 0.5;
+        }
+
+        .ground {
+            position: absolute;
+            bottom: 0;
+            width: 100%;
+            height: 2px;
+            background: var(--accent);
+            box-shadow: 0 0 10px var(--accent);
+        }
+
+        .score-container {
+            position: absolute;
+            top: 20px;
+            right: 20px;
+            text-align: right;
+        }
+
+        .score {
+            font-size: 24px;
+            color: var(--text);
+            text-shadow: 0 0 10px var(--accent);
+        }
+
+        .high-score {
+            margin-top: 5px;
+            font-size: 16px;
+            opacity: 0.7;
+        }
+
+        .game-over {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            text-align: center;
+            display: none;
+            background: rgba(0, 0, 0, 0.8);
+            padding: 30px;
+            border-radius: 10px;
+            border: 2px solid var(--accent);
+        }
+
+        .btn {
+            background: var(--accent);
+            color: var(--text);
+            border: none;
+            padding: 15px 30px;
+            font-family: inherit;
+            font-size: 16px;
+            cursor: pointer;
+            margin-top: 20px;
+            border-radius: 5px;
+            transition: all 0.3s;
+        }
+
+        .btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 0 15px var(--accent);
+        }
+
+        .start-screen {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            text-align: center;
+            color: var(--text);
+            text-shadow: 0 0 10px var(--accent);
+        }
+
+        .particle {
+            position: absolute;
+            pointer-events: none;
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            animation: particle 1s ease-out forwards;
+        }
+
+        @keyframes particle {
+            0% { 
+                transform: translate(0, 0) scale(1);
+                opacity: 1;
+            }
+            100% { 
+                transform: translate(var(--tx), var(--ty)) scale(0);
+                opacity: 0;
+            }
+        }
+
+        @keyframes moveLeft {
+            from { right: -50px; }
+            to { right: 100%; }
+        }
+    </style>
+</head>
+<body>
+    <div class="game-container">
+        <div class="score-container">
+            <div class="score" id="score">00000</div>
+            <div class="high-score">HI <span id="highScore">00000</span></div>
+        </div>
+        <div class="dino" id="dino"></div>
+        <div class="ground"></div>
+        <div class="start-screen" id="startScreen">
+            Press SPACE to Start<br>
+            <span style="font-size: 14px; opacity: 0.7;">Space to Jump</span>
+        </div>
+        <div class="game-over" id="gameOver">
+            <h1>GAME OVER</h1>
+            <div style="margin-top: 20px;">Score: <span id="finalScore">0</span></div>
+            <button class="btn" onclick="game.restart()">Try Again</button>
+        </div>
+    </div>
+
+    <script>
+        class DinoGame {
+            constructor() {
+                this.dino = document.getElementById('dino');
+                this.gameContainer = document.querySelector('.game-container');
+                this.startScreen = document.getElementById('startScreen');
+                this.gameOverScreen = document.getElementById('gameOver');
+                
+                this.score = 0;
+                this.highScore = localStorage.getItem('dinoHighScore') || 0;
+                this.speed = 2;
+                this.isJumping = false;
+                this.isGameOver = false;
+                this.obstacles = [];
+                this.gameLoop = null;
+                this.scoreInterval = null;
+                this.spawnInterval = 4000; // Much longer interval between obstacles
+                this.lastSpawnTime = 0;
+                this.minSpawnInterval = 2500; // Longer minimum interval
+
+                this.setupEventListeners();
+                this.updateHighScore();
+            }
+
+            getRandomColor() {
+                // Generate random RGB values
+                const r = Math.floor(Math.random() * 256);
+                const g = Math.floor(Math.random() * 256);
+                const b = Math.floor(Math.random() * 256);
+                return `rgb(${r}, ${g}, ${b})`;
+            }
+
+            setupEventListeners() {
+                document.addEventListener('keydown', (e) => {
+                    if (e.code === 'Space') {
+                        e.preventDefault();
+                        if (!this.gameLoop) {
+                            this.startGame();
+                        } else if (!this.isJumping && !this.isGameOver) {
+                            this.jump();
+                        }
+                    }
+                });
+            }
+
+            startGame() {
+                this.reset();
+                this.startScreen.style.display = 'none';
+                this.gameOverScreen.style.display = 'none';
+                this.gameLoop = setInterval(() => this.update(), 20);
+                this.scoreInterval = setInterval(() => {
+                    this.score++;
+                    this.updateScore();
+                    if (this.score % 300 === 0) { // Slower difficulty increase
+                        this.increaseSpeed();
+                    }
+                }, 100);
+            }
+
+            reset() {
+                this.score = 0;
+                this.speed = 2;
+                this.isGameOver = false;
+                this.obstacles = [];
+                this.clearObstacles();
+                this.spawnInterval = 4000;
+                this.updateScore();
+                this.dino.style.backgroundColor = getComputedStyle(document.documentElement).getPropertyValue('--dino-color');
+            }
+
+            update() {
+                if (this.isGameOver) return;
+
+                const now = Date.now();
+                if (now - this.lastSpawnTime >= this.spawnInterval) {
+                    this.spawnObstacle();
+                    this.lastSpawnTime = now;
+                }
+
+                this.checkCollisions();
+                this.removeOffscreenObstacles();
+            }
+
+            jump() {
+                if (this.isJumping) return;
+                
+                this.isJumping = true;
+                this.dino.classList.add('jump');
+                this.dino.style.backgroundColor = this.getRandomColor();
+                
+                setTimeout(() => {
+                    this.dino.classList.remove('jump');
+                    this.isJumping = false;
+                    this.dino.style.backgroundColor = getComputedStyle(document.documentElement).getPropertyValue('--dino-color');
+                }, 500);
+            }
+
+            spawnObstacle() {
+                const lastObstacle = this.obstacles[this.obstacles.length - 1];
+                if (lastObstacle) {
+                    const lastObstacleRect = lastObstacle.element.getBoundingClientRect();
+                    const containerRect = this.gameContainer.getBoundingClientRect();
+                    
+                    if (lastObstacleRect.right > containerRect.right - containerRect.width * 0.6) {
+                        return;
+                    }
+                }
+
+                const obstacle = document.createElement('div');
+                obstacle.className = 'obstacle';
+                obstacle.style.animationDuration = `${6000 / this.speed}ms`; // Slower obstacle movement
+
+                this.gameContainer.appendChild(obstacle);
+                this.obstacles.push({ element: obstacle });
+            }
+
+            checkCollisions() {
+                const dinoRect = this.dino.getBoundingClientRect();
+                
+                this.obstacles.forEach(obstacle => {
+                    const obstacleRect = obstacle.element.getBoundingClientRect();
+                    
+                    if (this.isColliding(dinoRect, obstacleRect)) {
+                        this.gameOver();
+                    }
+                });
+            }
+
+            isColliding(rect1, rect2) {
+                return !(rect1.right < rect2.left + 10 || 
+                        rect1.left > rect2.right - 10 || 
+                        rect1.bottom < rect2.top + 10 || 
+                        rect1.top > rect2.bottom - 10);
+            }
+
+            increaseSpeed() {
+                this.speed += 0.1; // Smaller speed increase
+                this.spawnInterval = Math.max(this.minSpawnInterval, this.spawnInterval - 50);
+                
+                this.obstacles.forEach(obstacle => {
+                    obstacle.element.style.animationDuration = `${6000 / this.speed}ms`;
+                });
+            }
+
+            removeOffscreenObstacles() {
+                this.obstacles = this.obstacles.filter(obstacle => {
+                    if (obstacle.element.getBoundingClientRect().right < 0) {
+                        obstacle.element.remove();
+                        return false;
+                    }
+                    return true;
+                });
+            }
+
+            gameOver() {
+                this.isGameOver = true;
+                clearInterval(this.gameLoop);
+                clearInterval(this.scoreInterval);
+                this.gameLoop = null;
+                
+                if (this.score > this.highScore) {
+                    this.highScore = this.score;
+                    localStorage.setItem('dinoHighScore', this.highScore);
+                    this.updateHighScore();
+                }
+
+                document.getElementById('finalScore').textContent = this.score;
+                this.gameOverScreen.style.display = 'block';
+                this.createExplosion();
+            }
+
+            createExplosion() {
+                const dinoRect = this.dino.getBoundingClientRect();
+                for (let i = 0; i < 20; i++) {
+                    const particle = document.createElement('div');
+                    particle.className = 'particle';
+                    particle.style.backgroundColor = getComputedStyle(document.documentElement).getPropertyValue('--dino-color');
+                    particle.style.left = `${dinoRect.left + dinoRect.width/2}px`;
+                    particle.style.top = `${dinoRect.top + dinoRect.height/2}px`;
+                    particle.style.setProperty('--tx', `${(Math.random() - 0.5) * 200}px`);
+                    particle.style.setProperty('--ty', `${(Math.random() - 0.5) * 200}px`);
+                    this.gameContainer.appendChild(particle);
+                    setTimeout(() => particle.remove(), 1000);
+                }
+            }
+
+            clearObstacles() {
+                this.obstacles.forEach(obstacle => obstacle.element.remove());
+                this.obstacles = [];
+            }
+
+            updateScore() {
+                document.getElementById('score').textContent = 
+                    String(this.score).padStart(5, '0');
+            }
+
+            updateHighScore() {
+                document.getElementById('highScore').textContent = 
+                    String(this.highScore).padStart(5, '0');
+            }
+
+            restart() {
+                this.startGame();
+            }
+        }
+
+        const game = new DinoGame();
+    </script>
+</body>
+</html>

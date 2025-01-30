@@ -1,0 +1,285 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Glassy Bounce</title>
+    <style>
+        body {
+            margin: 0;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            background: linear-gradient(45deg, #7F7FD5, #86A8E7);
+            font-family: Arial, sans-serif;
+        }
+
+        #gameContainer {
+            position: relative;
+            width: 800px;
+            height: 600px;
+            background: rgba(255, 255, 255, 0.1);
+            backdrop-filter: blur(10px);
+            border-radius: 20px;
+            border: 1px solid rgba(255, 255, 255, 0.3);
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
+            overflow: hidden;
+        }
+
+        #ball {
+            position: absolute;
+            width: 30px;
+            height: 30px;
+            background: rgba(255, 255, 255, 0.95);
+            border-radius: 50%;
+            box-shadow: 0 0 20px rgba(255, 255, 255, 0.5);
+            transition: all 0.1s;
+            z-index: 2;
+        }
+
+        .platform {
+            position: absolute;
+            background: rgba(255, 255, 255, 0.15);
+            border-radius: 8px;
+            border: 1px solid rgba(255, 255, 255, 0.3);
+            backdrop-filter: blur(5px);
+            transition: all 0.3s;
+        }
+
+        .cracked {
+            background: rgba(255, 50, 50, 0.3);
+            animation: shake 0.5s;
+        }
+
+        #aimLine {
+            position: absolute;
+            height: 2px;
+            background: rgba(255, 255, 255, 0.5);
+            transform-origin: 0 0;
+            display: none;
+        }
+
+        #hud {
+            position: absolute;
+            top: 20px;
+            left: 20px;
+            color: white;
+            font-size: 24px;
+            text-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+        }
+
+        #gameOver {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background: rgba(255, 255, 255, 0.2);
+            padding: 30px 50px;
+            border-radius: 20px;
+            text-align: center;
+            backdrop-filter: blur(10px);
+            color: white;
+            display: none;
+        }
+
+        button {
+            background: rgba(255, 255, 255, 0.3);
+            border: none;
+            padding: 12px 30px;
+            border-radius: 8px;
+            color: white;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+
+        button:hover {
+            background: rgba(255, 255, 255, 0.4);
+        }
+
+        @keyframes shake {
+            0%, 100% { transform: translateX(0); }
+            25% { transform: translateX(-3px); }
+            75% { transform: translateX(3px); }
+        }
+    </style>
+</head>
+<body>
+    <div id="gameContainer">
+        <div id="hud">Score: <span id="score">0</span></div>
+        <div id="ball"></div>
+        <div id="aimLine"></div>
+        <div id="gameOver">
+            <h2>Game Over!</h2>
+            <p>Final Score: <span id="finalScore">0</span></p>
+            <button onclick="startGame()">Play Again</button>
+        </div>
+    </div>
+
+    <script>
+        const gameContainer = document.getElementById('gameContainer');
+        const ball = document.getElementById('ball');
+        const aimLine = document.getElementById('aimLine');
+        const scoreElement = document.getElementById('score');
+        const gameOverScreen = document.getElementById('gameOver');
+        const finalScoreElement = document.getElementById('finalScore');
+
+        let isAiming = false;
+        let startX = 400;
+        let startY = 550;
+        let ballX = 400;
+        let ballY = 550;
+        let velocityX = 0;
+        let velocityY = 0;
+        let score = 0;
+        let platforms = [];
+        let gravity = 0.5;
+        let gameActive = true;
+
+        function createPlatforms() {
+            // Create base platform
+            platforms.push(createPlatform(300, 570, 200, 20));
+            
+            // Create floating platforms
+            platforms.push(createPlatform(100, 400, 150, 15));
+            platforms.push(createPlatform(550, 300, 150, 15));
+            platforms.push(createPlatform(200, 200, 150, 15));
+            platforms.push(createPlatform(450, 100, 150, 15));
+        }
+
+        function createPlatform(x, y, width, height) {
+            const platform = document.createElement('div');
+            platform.className = 'platform';
+            platform.style.width = width + 'px';
+            platform.style.height = height + 'px';
+            platform.style.left = x + 'px';
+            platform.style.top = y + 'px';
+            gameContainer.appendChild(platform);
+            return {
+                element: platform,
+                x,
+                y,
+                width,
+                height,
+                health: 3
+            };
+        }
+
+        function startGame() {
+            // Reset game state
+            gameActive = true;
+            score = 0;
+            ballX = 400;
+            ballY = 550;
+            velocityX = 0;
+            velocityY = 0;
+            scoreElement.textContent = '0';
+            gameOverScreen.style.display = 'none';
+            
+            // Clear existing platforms
+            platforms.forEach(p => p.element.remove());
+            platforms = [];
+            createPlatforms();
+            
+            updateBallPosition();
+        }
+
+        function updateBallPosition() {
+            ball.style.left = (ballX - 15) + 'px';
+            ball.style.top = (ballY - 15) + 'px';
+        }
+
+        function handleMouseDown(e) {
+            if (!gameActive) return;
+            isAiming = true;
+            aimLine.style.display = 'block';
+            aimLine.style.left = ballX + 'px';
+            aimLine.style.top = ballY + 'px';
+        }
+
+        function handleMouseMove(e) {
+            if (!isAiming) return;
+            
+            const rect = gameContainer.getBoundingClientRect();
+            const mouseX = e.clientX - rect.left;
+            const mouseY = e.clientY - rect.top;
+            
+            const angle = Math.atan2(mouseY - ballY, mouseX - ballX);
+            const length = Math.min(150, Math.hypot(mouseX - ballX, mouseY - ballY));
+            
+            aimLine.style.transform = `rotate(${angle}rad)`;
+            aimLine.style.width = length + 'px';
+        }
+
+        function handleMouseUp(e) {
+            if (!isAiming) return;
+            isAiming = false;
+            aimLine.style.display = 'none';
+            
+            const rect = gameContainer.getBoundingClientRect();
+            const mouseX = e.clientX - rect.left;
+            const mouseY = e.clientY - rect.top;
+            
+            velocityX = (ballX - mouseX) * 0.15;
+            velocityY = (ballY - mouseY) * 0.15;
+            
+            gameLoop();
+        }
+
+        function checkCollisions() {
+            platforms.forEach((platform, index) => {
+                if (ballY + 15 > platform.y &&
+                    ballY - 15 < platform.y + platform.height &&
+                    ballX + 15 > platform.x &&
+                    ballX - 15 < platform.x + platform.width) {
+                    
+                    // Collision detected
+                    velocityY *= -0.8;
+                    ballY = platform.y - 15;
+                    
+                    platform.health--;
+                    if(platform.health <= 0) {
+                        platform.element.remove();
+                        platforms.splice(index, 1);
+                        score += 100;
+                    } else {
+                        platform.element.classList.add('cracked');
+                        setTimeout(() => platform.element.classList.remove('cracked'), 200);
+                        score += 20;
+                    }
+                    scoreElement.textContent = score;
+                }
+            });
+        }
+
+        function gameLoop() {
+            if (!gameActive) return;
+            
+            velocityY += gravity;
+            ballX += velocityX;
+            ballY += velocityY;
+            
+            // Wall collisions
+            if (ballX < 15 || ballX > 785) velocityX *= -0.8;
+            if (ballY > 585) {
+                velocityY *= -0.8;
+                ballY = 585;
+            }
+            
+            checkCollisions();
+            updateBallPosition();
+            
+            if (ballY > 600 || platforms.length === 0) {
+                gameActive = false;
+                finalScoreElement.textContent = score;
+                gameOverScreen.style.display = 'block';
+            } else {
+                requestAnimationFrame(gameLoop);
+            }
+        }
+
+        gameContainer.addEventListener('mousedown', handleMouseDown);
+        gameContainer.addEventListener('mousemove', handleMouseMove);
+        gameContainer.addEventListener('mouseup', handleMouseUp);
+        startGame();
+    </script>
+</body>
+</html>

@@ -1,0 +1,383 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Platform Jumper</title>
+    <style>
+        body {
+            margin: 0;
+            overflow: hidden;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            background: #1a1a1a;
+            font-family: Arial, sans-serif;
+        }
+
+        #gameContainer {
+            position: relative;
+            width: 800px;
+            height: 400px;
+            background: linear-gradient(to bottom, #333366, #666699);
+            border: 3px solid #444;
+            border-radius: 10px;
+            overflow: hidden;
+        }
+
+        #player {
+            position: absolute;
+            width: 30px;
+            height: 30px;
+            background: #ff4444;
+            border-radius: 5px;
+            transition: transform 0.1s;
+        }
+
+        .platform {
+            position: absolute;
+            background: #44ff44;
+            border-radius: 5px;
+        }
+
+        .coin {
+            position: absolute;
+            width: 15px;
+            height: 15px;
+            background: #ffff44;
+            border-radius: 50%;
+            animation: coinFloat 0.5s infinite alternate;
+        }
+
+        .obstacle {
+            position: absolute;
+            background: #ff0000;
+            border-radius: 5px;
+        }
+
+        #score {
+            position: absolute;
+            top: 20px;
+            left: 20px;
+            color: white;
+            font-size: 24px;
+            z-index: 100;
+        }
+
+        #gameOver {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background: rgba(0, 0, 0, 0.8);
+            padding: 20px;
+            border-radius: 10px;
+            text-align: center;
+            color: white;
+            display: none;
+        }
+
+        @keyframes coinFloat {
+            from { transform: translateY(0); }
+            to { transform: translateY(-5px); }
+        }
+
+        .particle {
+            position: absolute;
+            width: 4px;
+            height: 4px;
+            background: #ffff44;
+            border-radius: 50%;
+            pointer-events: none;
+        }
+
+        #startScreen {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background: rgba(0, 0, 0, 0.8);
+            padding: 20px;
+            border-radius: 10px;
+            text-align: center;
+            color: white;
+        }
+
+        button {
+            padding: 10px 20px;
+            font-size: 18px;
+            background: #44ff44;
+            border: none;
+            border-radius: 5px;
+            color: #000;
+            cursor: pointer;
+            margin-top: 10px;
+        }
+
+        button:hover {
+            background: #33cc33;
+        }
+    </style>
+</head>
+<body>
+    <div id="gameContainer">
+        <div id="score">Score: 0</div>
+        <div id="player"></div>
+        <div id="startScreen">
+            <h2>Platform Jumper</h2>
+            <p>Use Space to jump<br>Collect coins and avoid obstacles</p>
+            <button onclick="startGame()">Start Game</button>
+        </div>
+        <div id="gameOver">
+            <h2>Game Over!</h2>
+            <p>Final Score: <span id="finalScore">0</span></p>
+            <button onclick="startGame()">Play Again</button>
+        </div>
+    </div>
+    <script>
+        const player = {
+            element: document.getElementById('player'),
+            x: 50,
+            y: 200,
+            velocityY: 0,
+            isJumping: false
+        };
+    
+        let platforms = [];
+        let coins = [];
+        let obstacles = [];
+        let score = 0;
+        let gameLoop;
+        let isGameRunning = false;
+    
+        const GRAVITY = 0.5;
+        const JUMP_FORCE = -12;
+        const GAME_SPEED = 3;
+    
+        function startGame() {
+            // Reset game state
+            player.x = 50;
+            player.y = 200;
+            player.velocityY = 0;
+            platforms = [];
+            coins = [];
+            obstacles = [];
+            score = 0;
+            updateScore();
+    
+            // Clear existing elements
+            document.querySelectorAll('.platform, .coin, .obstacle').forEach(el => el.remove());
+    
+            // Hide menus
+            document.getElementById('startScreen').style.display = 'none';
+            document.getElementById('gameOver').style.display = 'none';
+    
+            // Create initial platforms
+            createPlatform(0, 350, 800, 50); // Ground
+            for(let i = 0; i < 5; i++) {
+                createRandomPlatform();
+            }
+    
+            isGameRunning = true;
+            if(gameLoop) clearInterval(gameLoop);
+            gameLoop = setInterval(update, 1000/60);
+        }
+    
+        function createPlatform(x, y, width, height) {
+            const platform = document.createElement('div');
+            platform.className = 'platform';
+            platform.style.left = x + 'px';
+            platform.style.top = y + 'px';
+            platform.style.width = width + 'px';
+            platform.style.height = height + 'px';
+            document.getElementById('gameContainer').appendChild(platform);
+            platforms.push({
+                element: platform,
+                x: x,
+                y: y,
+                width: width,
+                height: height
+            });
+        }
+    
+        function createCoin(x, y) {
+            const coin = document.createElement('div');
+            coin.className = 'coin';
+            coin.style.left = x + 'px';
+            coin.style.top = y + 'px';
+            document.getElementById('gameContainer').appendChild(coin);
+            coins.push({
+                element: coin,
+                x: x,
+                y: y
+            });
+        }
+    
+        function createObstacle(x, y) {
+            const obstacle = document.createElement('div');
+            obstacle.className = 'obstacle';
+            obstacle.style.left = x + 'px';
+            obstacle.style.top = y + 'px';
+            obstacle.style.width = '20px';
+            obstacle.style.height = '20px';
+            document.getElementById('gameContainer').appendChild(obstacle);
+            obstacles.push({
+                element: obstacle,
+                x: x,
+                y: y
+            });
+        }
+    
+        function createRandomPlatform() {
+            const width = Math.random() * 100 + 50;
+            const x = Math.random() * (700 - width);
+            const y = Math.random() * 200 + 100;
+            createPlatform(x, y, width, 15);
+            
+            // 50% chance to spawn a coin above the platform
+            if(Math.random() < 0.5) {
+                createCoin(x + width/2, y - 30);
+            }
+            
+            // 30% chance to spawn an obstacle on the platform
+            if(Math.random() < 0.3) {
+                createObstacle(x + width/2, y - 20);
+            }
+        }
+    
+        function update() {
+            if(!isGameRunning) return;
+    
+            // Apply gravity
+            player.velocityY += GRAVITY;
+            player.y += player.velocityY;
+    
+            // Check platform collisions
+            platforms.forEach(platform => {
+                if(player.y + 30 > platform.y && 
+                   player.y + player.velocityY < platform.y &&
+                   player.x + 30 > platform.x && 
+                   player.x < platform.x + platform.width) {
+                    player.y = platform.y - 30;
+                    player.velocityY = 0;
+                    player.isJumping = false;
+                }
+            });
+    
+            // Check coin collisions
+            coins.forEach((coin, index) => {
+                if(player.x + 30 > coin.x && 
+                   player.x < coin.x + 15 &&
+                   player.y + 30 > coin.y && 
+                   player.y < coin.y + 15) {
+                    coin.element.remove();
+                    coins.splice(index, 1);
+                    score += 10;
+                    updateScore();
+                    createCoinParticles(coin.x, coin.y);
+                }
+            });
+    
+            // Check obstacle collisions
+            obstacles.forEach(obstacle => {
+                if(player.x + 30 > obstacle.x && 
+                   player.x < obstacle.x + 20 &&
+                   player.y + 30 > obstacle.y && 
+                   player.y < obstacle.y + 20) {
+                    gameOver();
+                }
+            });
+    
+            // Move everything left
+            platforms.forEach(platform => {
+                platform.x -= GAME_SPEED;
+                platform.element.style.left = platform.x + 'px';
+            });
+    
+            coins.forEach(coin => {
+                coin.x -= GAME_SPEED;
+                coin.element.style.left = coin.x + 'px';
+            });
+    
+            obstacles.forEach(obstacle => {
+                obstacle.x -= GAME_SPEED;
+                obstacle.element.style.left = obstacle.x + 'px';
+            });
+    
+            // Remove off-screen elements
+            platforms = platforms.filter(p => p.x + p.width > -100);
+            coins = coins.filter(c => c.x > -20);
+            obstacles = obstacles.filter(o => o.x > -20);
+    
+            // Create new platforms
+            if(Math.random() < 0.02) {
+                createRandomPlatform();
+            }
+    
+            // Update player position
+            player.element.style.left = player.x + 'px';
+            player.element.style.top = player.y + 'px';
+    
+            // Check if player fell off
+            if(player.y > 400) {
+                gameOver();
+            }
+        }
+    
+        function createCoinParticles(x, y) {
+            for(let i = 0; i < 8; i++) {
+                const particle = document.createElement('div');
+                particle.className = 'particle';
+                particle.style.left = x + 'px';
+                particle.style.top = y + 'px';
+                
+                const angle = (i / 8) * Math.PI * 2;
+                const velocity = {
+                    x: Math.cos(angle) * 5,
+                    y: Math.sin(angle) * 5
+                };
+                
+                document.getElementById('gameContainer').appendChild(particle);
+                
+                let frame = 0;
+                const animateParticle = () => {
+                    frame++;
+                    const currentX = parseFloat(particle.style.left);
+                    const currentY = parseFloat(particle.style.top);
+                    
+                    particle.style.left = (currentX + velocity.x) + 'px';
+                    particle.style.top = (currentY + velocity.y) + 'px';
+                    particle.style.opacity = 1 - (frame / 30);
+                    
+                    if(frame < 30) {
+                        requestAnimationFrame(animateParticle);
+                    } else {
+                        particle.remove();
+                    }
+                };
+                
+                requestAnimationFrame(animateParticle);
+            }
+        }
+    
+        function updateScore() {
+            document.getElementById('score').textContent = `Score: ${score}`;
+        }
+    
+        function gameOver() {
+            isGameRunning = false;
+            clearInterval(gameLoop);
+            document.getElementById('gameOver').style.display = 'block';
+            document.getElementById('finalScore').textContent = score;
+        }
+    
+        // Jump control
+        document.addEventListener('keydown', (e) => {
+            if(e.code === 'Space' && !player.isJumping && isGameRunning) {
+                player.velocityY = JUMP_FORCE;
+                player.isJumping = true;
+            }
+        });
+    </script>
+    </body>
+    </html>
+    

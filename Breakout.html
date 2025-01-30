@@ -1,0 +1,320 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Neon Breakout</title>
+    <link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --primary: #2c3e50;
+            --accent: #3498db;
+            --ball: #e74c3c;
+            --paddle: #2ecc71;
+            --brick: #f1c40f;
+            --text: #ecf0f1;
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            min-height: 100vh;
+            background: #1a1a2e;
+            font-family: 'Press Start 2P', monospace;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            flex-direction: column;
+            color: var(--text);
+        }
+
+        .game-container {
+            width: 800px;
+            height: 600px;
+            position: relative;
+            overflow: hidden;
+            background: rgba(255, 255, 255, 0.05);
+            border: 2px solid var(--accent);
+            border-radius: 10px;
+            box-shadow: 0 0 20px rgba(52, 152, 219, 0.3);
+        }
+
+        .paddle {
+            width: 100px;
+            height: 20px;
+            position: absolute;
+            bottom: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: var(--paddle);
+            border-radius: 10px;
+            box-shadow: 0 0 10px var(--paddle);
+        }
+
+        .ball {
+            width: 15px;
+            height: 15px;
+            position: absolute;
+            background: var(--ball);
+            border-radius: 50%;
+            box-shadow: 0 0 10px var(--ball);
+        }
+
+        .brick {
+            width: 80px;
+            height: 30px;
+            position: absolute;
+            background: var(--brick);
+            border-radius: 5px;
+            box-shadow: 0 0 10px var(--brick);
+        }
+
+        .score {
+            position: absolute;
+            top: 20px;
+            right: 20px;
+            font-size: 20px;
+            text-shadow: 0 0 10px var(--accent);
+        }
+
+        .start-screen, .game-over {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            text-align: center;
+            background: rgba(0, 0, 0, 0.8);
+            padding: 30px;
+            border-radius: 10px;
+            border: 2px solid var(--accent);
+        }
+
+        .btn {
+            background: var(--accent);
+            color: var(--text);
+            border: none;
+            padding: 15px 30px;
+            font-family: inherit;
+            font-size: 16px;
+            cursor: pointer;
+            margin-top: 20px;
+            border-radius: 5px;
+            transition: all 0.3s;
+        }
+
+        .btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 0 15px var(--accent);
+        }
+    </style>
+</head>
+<body>
+    <div class="game-container" id="gameContainer">
+        <div class="score">Score: <span id="score">0</span></div>
+        <div class="paddle" id="paddle"></div>
+        <div class="ball" id="ball"></div>
+        <div class="start-screen" id="startScreen">
+            Press SPACE to Start<br>
+            <span style="font-size: 14px; opacity: 0.7;">Use arrows to move paddle</span>
+        </div>
+        <div class="game-over" id="gameOver" style="display: none;">
+            <h1>GAME OVER</h1>
+            <div>Final Score: <span id="finalScore">0</span></div>
+            <button class="btn" onclick="game.restart()">Try Again</button>
+        </div>
+    </div>
+
+    <script>
+        class BreakoutGame {
+            constructor() {
+                this.gameContainer = document.getElementById('gameContainer');
+                this.paddle = document.getElementById('paddle');
+                this.ball = document.getElementById('ball');
+                this.startScreen = document.getElementById('startScreen');
+                this.gameOverScreen = document.getElementById('gameOver');
+                
+                this.score = 0;
+                this.gameLoop = null;
+                this.bricks = [];
+                this.ballSpeed = { x: 5, y: -5 };
+                this.paddleSpeed = 8;
+                this.paddlePos = { x: 350 };
+                this.ballPos = { x: 392, y: 550 };
+                this.gameStarted = false;
+                this.keys = { left: false, right: false };
+
+                this.setupEventListeners();
+                this.createBricks();
+            }
+
+            setupEventListeners() {
+                document.addEventListener('keydown', (e) => {
+                    if (e.key === 'ArrowLeft') this.keys.left = true;
+                    if (e.key === 'ArrowRight') this.keys.right = true;
+                    if (e.code === 'Space' && !this.gameStarted) this.startGame();
+                });
+
+                document.addEventListener('keyup', (e) => {
+                    if (e.key === 'ArrowLeft') this.keys.left = false;
+                    if (e.key === 'ArrowRight') this.keys.right = false;
+                });
+            }
+
+            createBricks() {
+                for (let i = 0; i < 5; i++) {
+                    for (let j = 0; j < 8; j++) {
+                        const brick = document.createElement('div');
+                        brick.className = 'brick';
+                        brick.style.left = j * 100 + 10 + 'px';
+                        brick.style.top = i * 40 + 50 + 'px';
+                        this.gameContainer.appendChild(brick);
+                        this.bricks.push(brick);
+                    }
+                }
+            }
+
+            startGame() {
+                this.gameStarted = true;
+                this.startScreen.style.display = 'none';
+                this.gameLoop = setInterval(() => this.update(), 16);
+            }
+
+            update() {
+                this.movePaddle();
+                this.moveBall();
+                this.checkCollisions();
+            }
+
+            movePaddle() {
+                if (this.keys.left) {
+                    this.paddlePos.x = Math.max(0, this.paddlePos.x - this.paddleSpeed);
+                }
+                if (this.keys.right) {
+                    this.paddlePos.x = Math.min(700, this.paddlePos.x + this.paddleSpeed);
+                }
+                this.paddle.style.left = this.paddlePos.x + 'px';
+            }
+
+            moveBall() {
+                this.ballPos.x += this.ballSpeed.x;
+                this.ballPos.y += this.ballSpeed.y;
+
+                // Wall collisions
+                if (this.ballPos.x <= 0 || this.ballPos.x >= 785) this.ballSpeed.x *= -1;
+                if (this.ballPos.y <= 0) this.ballSpeed.y *= -1;
+                if (this.ballPos.y >= 585) this.gameOver();
+
+                this.ball.style.left = this.ballPos.x + 'px';
+                this.ball.style.top = this.ballPos.y + 'px';
+            }
+
+            checkCollisions() {
+                // Paddle collision
+                if (this.ballPos.y >= 560 && this.ballPos.y <= 570 &&
+                    this.ballPos.x >= this.paddlePos.x - 15 && 
+                    this.ballPos.x <= this.paddlePos.x + 115) {
+                    this.ballSpeed.y *= -1;
+                    this.ballSpeed.x = (this.ballPos.x - (this.paddlePos.x + 50)) / 10;
+                }
+
+                // Brick collisions
+                this.bricks.forEach((brick, index) => {
+                    if (brick) {
+                        const brickRect = brick.getBoundingClientRect();
+                        const ballRect = this.ball.getBoundingClientRect();
+
+                        if (this.isColliding(ballRect, brickRect)) {
+                            brick.remove();
+                            this.bricks[index] = null;
+                            this.ballSpeed.y *= -1;
+                            this.score += 10;
+                            document.getElementById('score').textContent = this.score;
+                            this.createParticles(brickRect.left, brickRect.top);
+                        }
+                    }
+                });
+            }
+
+            isColliding(rect1, rect2) {
+                return !(rect1.right < rect2.left || 
+                        rect1.left > rect2.right || 
+                        rect1.bottom < rect2.top || 
+                        rect1.top > rect2.bottom);
+            }
+
+            createParticles(x, y) {
+                for (let i = 0; i < 8; i++) {
+                    const particle = document.createElement('div');
+                    particle.style.position = 'absolute';
+                    particle.style.width = '4px';
+                    particle.style.height = '4px';
+                    particle.style.background = 'var(--brick)';
+                    particle.style.left = x + 40 + 'px';
+                    particle.style.top = y + 15 + 'px';
+                    particle.style.borderRadius = '50%';
+                    particle.style.boxShadow = '0 0 10px var(--brick)';
+                    
+                    const angle = (i / 8) * Math.PI * 2;
+                    const velocity = { x: Math.cos(angle) * 5, y: Math.sin(angle) * 5 };
+                    
+                    this.gameContainer.appendChild(particle);
+                    
+                    let opacity = 1;
+                    const animate = () => {
+                        if (opacity <= 0) {
+                            particle.remove();
+                            return;
+                        }
+                        
+                        opacity -= 0.02;
+                        particle.style.opacity = opacity;
+                        particle.style.left = parseFloat(particle.style.left) + velocity.x + 'px';
+                        particle.style.top = parseFloat(particle.style.top) + velocity.y + 'px';
+                        requestAnimationFrame(animate);
+                    };
+                    
+                    requestAnimationFrame(animate);
+                }
+            }
+
+            gameOver() {
+                clearInterval(this.gameLoop);
+                this.gameLoop = null;
+                document.getElementById('finalScore').textContent = this.score;
+                this.gameOverScreen.style.display = 'block';
+            }
+
+            restart() {
+                this.gameContainer.innerHTML = `
+                    <div class="score">Score: <span id="score">0</span></div>
+                    <div class="paddle" id="paddle"></div>
+                    <div class="ball" id="ball"></div>
+                    <div class="game-over" id="gameOver" style="display: none;">
+                        <h1>GAME OVER</h1>
+                        <div>Final Score: <span id="finalScore">0</span></div>
+                        <button class="btn" onclick="game.restart()">Try Again</button>
+                    </div>
+                `;
+                
+                this.paddle = document.getElementById('paddle');
+                this.ball = document.getElementById('ball');
+                this.gameOverScreen = document.getElementById('gameOver');
+                
+                this.score = 0;
+                this.bricks = [];
+                this.ballSpeed = { x: 5, y: -5 };
+                this.paddlePos = { x: 350 };
+                this.ballPos = { x: 392, y: 550 };
+                
+                this.createBricks();
+                this.startGame();
+            }
+        }
+
+        const game = new BreakoutGame();
+    </script>
+</body>
+</html>

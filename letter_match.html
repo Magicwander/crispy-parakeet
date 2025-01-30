@@ -1,0 +1,127 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Glassy Card Game</title>
+    <style>
+        body {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            margin: 0;
+            background-color: #f0f0f0;
+            font-family: Arial, sans-serif;
+        }
+        .game-board {
+            display: grid;
+            grid-template-columns: repeat(4, 100px);
+            grid-template-rows: repeat(4, 100px);
+            gap: 10px;
+        }
+        .card {
+            width: 100px;
+            height: 100px;
+            background-color: #fff;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            font-size: 24px;
+            border-radius: 10px;
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+            cursor: pointer;
+            transition: transform 0.3s;
+        }
+        .card:hover {
+            transform: scale(1.05);
+        }
+        .card.flipped {
+            background-color: #007BFF;
+            color: #fff;
+            cursor: default;
+        }
+        .card.matched {
+            background-color: #28a745;
+            color: #fff;
+            cursor: default;
+        }
+    </style>
+</head>
+<body>
+    <div class="game-board" id="gameBoard"></div>
+    <script>
+        const cards = [
+            { id: 1, value: 'A' }, { id: 2, value: 'A' },
+            { id: 3, value: 'B' }, { id: 4, value: 'B' },
+            { id: 5, value: 'C' }, { id: 6, value: 'C' },
+            { id: 7, value: 'D' }, { id: 8, value: 'D' },
+            { id: 9, value: 'E' }, { id: 10, value: 'E' },
+            { id: 11, value: 'F' }, { id: 12, value: 'F' },
+            { id: 13, value: 'G' }, { id: 14, value: 'G' },
+            { id: 15, value: 'H' }, { id: 16, value: 'H' }
+        ];
+
+        let flippedCards = [];
+        let matchedPairs = 0;
+
+        function shuffleCards(array) {
+            for (let i = array.length - 1; i > 0; i--) {
+                const j = Math.floor(Math.random() * (i + 1));
+                [array[i], array[j]] = [array[j], array[i]];
+            }
+        }
+
+        function createCardElement(card) {
+            const cardElement = document.createElement('div');
+            cardElement.classList.add('card');
+            cardElement.dataset.id = card.id;
+            cardElement.dataset.value = card.value;
+            cardElement.addEventListener('click', flipCard);
+            return cardElement;
+        }
+
+        function flipCard() {
+            if (flippedCards.length < 2 && !this.classList.contains('flipped') && !this.classList.contains('matched')) {
+                this.classList.add('flipped');
+                this.textContent = this.dataset.value;
+                flippedCards.push(this);
+
+                if (flippedCards.length === 2) {
+                    setTimeout(checkForMatch, 500);
+                }
+            }
+        }
+
+        function checkForMatch() {
+            const [card1, card2] = flippedCards;
+            if (card1.dataset.value === card2.dataset.value) {
+                card1.classList.add('matched');
+                card2.classList.add('matched');
+                matchedPairs++;
+                if (matchedPairs === cards.length / 2) {
+                    alert('Congratulations! You won!');
+                }
+            } else {
+                card1.classList.remove('flipped');
+                card2.classList.remove('flipped');
+                card1.textContent = '';
+                card2.textContent = '';
+            }
+            flippedCards = [];
+        }
+
+        function initGame() {
+            shuffleCards(cards);
+            const gameBoard = document.getElementById('gameBoard');
+            gameBoard.innerHTML = '';
+            cards.forEach(card => {
+                const cardElement = createCardElement(card);
+                gameBoard.appendChild(cardElement);
+            });
+        }
+
+        initGame();
+    </script>
+</body>
+</html>

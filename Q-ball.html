@@ -1,0 +1,226 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Mercurial Labyrinth</title>
+    <style>
+        body {
+            margin: 0;
+            overflow: hidden;
+            background: radial-gradient(circle at center, #0f2027, #203a43, #2c5364);
+            height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            font-family: 'Segoe UI', sans-serif;
+        }
+
+        #gameContainer {
+            position: relative;
+            width: 800px;
+            height: 600px;
+            border-radius: 20px;
+            overflow: hidden;
+            background: rgba(255,255,255,0.05);
+            backdrop-filter: blur(10px);
+            box-shadow: 0 0 50px rgba(255,255,255,0.1);
+        }
+
+        .liquid-mercury {
+            position: absolute;
+            width: 40px;
+            height: 40px;
+            background: radial-gradient(circle at 30% 30%, 
+                rgba(255,255,255,0.9), 
+                rgba(200,200,255,0.5),
+                rgba(150,150,255,0.2));
+            border-radius: 50%;
+            box-shadow: 0 0 30px rgba(255,255,255,0.3);
+            transition: all 0.4s cubic-bezier(0.25, 0.46, 0.45, 0.94);
+        }
+
+        .glass-wall {
+            position: absolute;
+            background: rgba(255,255,255,0.15);
+            backdrop-filter: blur(5px);
+            border: 1px solid rgba(255,255,255,0.2);
+            box-shadow: 0 0 15px rgba(255,255,255,0.1);
+        }
+
+        .light-beam {
+            position: absolute;
+            background: linear-gradient(90deg, 
+                rgba(255,223,0,0.5), 
+                transparent);
+            pointer-events: none;
+        }
+
+        #hud {
+            position: fixed;
+            top: 20px;
+            color: white;
+            font-size: 24px;
+            text-shadow: 0 0 10px rgba(255,255,255,0.5);
+        }
+
+        .phaseGate {
+            position: absolute;
+            width: 60px;
+            height: 60px;
+            border: 2px solid rgba(255,255,255,0.3);
+            border-radius: 50%;
+            animation: phasePulse 2s infinite;
+        }
+
+        @keyframes phasePulse {
+            0% { transform: scale(1); opacity: 0.8; }
+            50% { transform: scale(1.2); opacity: 1; }
+            100% { transform: scale(1); opacity: 0.8; }
+        }
+    </style>
+</head>
+<body>
+    <div id="hud">Quantum State: <span id="phaseLevel">0%</span></div>
+    <div id="gameContainer"></div>
+
+    <script>
+        const game = {
+            mercury: null,
+            walls: [],
+            phase: 0,
+            isPhasing: false,
+            lightBeams: []
+        };
+
+        function initGame() {
+            // Create mercury blob
+            game.mercury = document.createElement('div');
+            game.mercury.className = 'liquid-mercury';
+            game.mercury.style.left = '380px';
+            game.mercury.style.top = '280px';
+            gameContainer.appendChild(game.mercury);
+
+            // Generate random glass maze
+            generateMaze();
+            createPhaseGate();
+        }
+
+        function generateMaze() {
+            // Create dynamic glass walls
+            for(let i = 0; i < 15; i++) {
+                const wall = document.createElement('div');
+                wall.className = 'glass-wall';
+                
+                if(Math.random() > 0.5) {
+                    // Horizontal wall
+                    wall.style.width = `${Math.random()*300 + 100}px`;
+                    wall.style.height = '20px';
+                    wall.style.left = `${Math.random()*600}px`;
+                    wall.style.top = `${Math.random()*500 + 50}px`;
+                } else {
+                    // Vertical wall
+                    wall.style.width = '20px';
+                    wall.style.height = `${Math.random()*300 + 100}px`;
+                    wall.style.left = `${Math.random()*700 + 50}px`;
+                    wall.style.top = `${Math.random()*400}px`;
+                }
+                
+                gameContainer.appendChild(wall);
+                game.walls.push(wall);
+            }
+        }
+
+        function createPhaseGate() {
+            const gate = document.createElement('div');
+            gate.className = 'phaseGate';
+            gate.style.left = `${Math.random()*700 + 50}px`;
+            gate.style.top = `${Math.random()*500 + 50}px`;
+            gameContainer.appendChild(gate);
+        }
+
+        function updateQuantumState() {
+            game.phase = Math.min(100, game.phase + 0.1);
+            document.getElementById('phaseLevel').textContent = 
+                `${Math.floor(game.phase)}%`;
+            
+            if(game.phase >= 100) {
+                game.isPhasing = true;
+                game.mercury.style.backdropFilter = 'blur(10px)';
+                game.mercury.style.background = 
+                    'radial-gradient(circle, rgba(255,255,255,0.5), transparent)';
+            }
+        }
+
+        function checkCollision() {
+            game.walls.forEach(wall => {
+                const wallRect = wall.getBoundingClientRect();
+                const mercuryRect = game.mercury.getBoundingClientRect();
+                
+                if(!game.isPhasing && rectsOverlap(mercuryRect, wallRect)) {
+                    handleCollision(wall);
+                }
+            });
+        }
+
+        function rectsOverlap(a, b) {
+            return !(a.right < b.left || 
+                    a.left > b.right || 
+                    a.bottom < b.top || 
+                    a.top > b.bottom);
+        }
+
+        function handleCollision(wall) {
+            const mercuryRect = game.mercury.getBoundingClientRect();
+            const wallRect = wall.getBoundingClientRect();
+            
+            // Mercury splash effect
+            game.mercury.style.transform = `scale(${1 + Math.random()*0.2})`;
+            setTimeout(() => {
+                game.mercury.style.transform = 'scale(1)';
+            }, 200);
+        }
+
+        function animate() {
+            if(game.isPhasing) {
+                game.phase -= 2;
+                if(game.phase <= 0) {
+                    game.isPhasing = false;
+                    game.mercury.style.backdropFilter = 'none';
+                    game.mercury.style.background = 
+                        'radial-gradient(circle at 30% 30%, rgba(255,255,255,0.9), rgba(200,200,255,0.5), rgba(150,150,255,0.2))';
+                }
+            }
+            
+            updateQuantumState();
+            checkCollision();
+            requestAnimationFrame(animate);
+        }
+
+        // Controls
+        document.addEventListener('keydown', (e) => {
+            const speed = game.isPhasing ? 20 : 10;
+            const rect = game.mercury.getBoundingClientRect();
+            
+            switch(e.key) {
+                case 'ArrowLeft':
+                    game.mercury.style.left = `${rect.left - speed}px`;
+                    break;
+                case 'ArrowRight':
+                    game.mercury.style.left = `${rect.left + speed}px`;
+                    break;
+                case 'ArrowUp':
+                    game.mercury.style.top = `${rect.top - speed}px`;
+                    break;
+                case 'ArrowDown':
+                    game.mercury.style.top = `${rect.top + speed}px`;
+                    break;
+            }
+        });
+
+        // Init
+        initGame();
+        animate();
+    </script>
+</body>
+</html>

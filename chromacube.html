@@ -1,0 +1,411 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>ChromaCube</title>
+    <style>
+        body {
+            margin: 0;
+            padding: 20px;
+            background: #0a0a1f;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            font-family: Arial, sans-serif;
+            color: white;
+        }
+
+        #gameContainer {
+            display: grid;
+            gap: 8px;
+            padding: 10px;
+            background: rgba(255,255,255,0.1);
+            border-radius: 12px;
+            box-shadow: 0 0 30px rgba(0,0,0,0.5);
+        }
+
+        .cube {
+            width: 70px;
+            height: 70px;
+            border-radius: 10px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            position: relative;
+            overflow: hidden;
+            font-size: 20px;
+            font-weight: bold;
+            text-shadow: 1px 1px 2px rgba(0,0,0,0.5);
+        }
+
+        .cube::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: linear-gradient(135deg, rgba(255,255,255,0.2), transparent);
+            border-radius: inherit;
+        }
+
+        .cube:hover {
+            transform: scale(1.05);
+            box-shadow: 0 0 15px rgba(255,255,255,0.3);
+        }
+
+        .cube.selected {
+            transform: scale(1.1);
+            box-shadow: 0 0 20px white;
+        }
+
+        .cube.matched {
+            animation: pulse 0.5s ease-out;
+        }
+
+        @keyframes pulse {
+            0% { transform: scale(1); }
+            50% { transform: scale(1.2); }
+            100% { transform: scale(1); }
+        }
+
+        #stats {
+            display: flex;
+            gap: 30px;
+            margin: 20px;
+            font-size: 24px;
+            background: rgba(255,255,255,0.1);
+            padding: 15px 30px;
+            border-radius: 10px;
+        }
+
+        #controls {
+            margin: 20px;
+            display: flex;
+            gap: 15px;
+        }
+
+        button {
+            padding: 12px 25px;
+            font-size: 18px;
+            background: linear-gradient(45deg, #4CAF50, #45a049);
+            border: none;
+            color: white;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+
+        button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(76,175,80,0.4);
+        }
+
+        #specialPower {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            padding: 15px;
+            background: rgba(255,255,255,0.1);
+            border-radius: 10px;
+            text-align: center;
+        }
+
+        #gameOver {
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background: rgba(0,0,0,0.9);
+            padding: 40px;
+            border-radius: 15px;
+            text-align: center;
+            display: none;
+            z-index: 100;
+        }
+
+        .power-meter {
+            width: 150px;
+            height: 20px;
+            background: rgba(255,255,255,0.1);
+            border-radius: 10px;
+            overflow: hidden;
+            margin-top: 10px;
+        }
+
+        .power-fill {
+            height: 100%;
+            width: 0%;
+            background: linear-gradient(90deg, #4CAF50, #8BC34A);
+            transition: width 0.3s ease;
+        }
+
+        .combo-text {
+            position: absolute;
+            color: white;
+            font-size: 24px;
+            font-weight: bold;
+            pointer-events: none;
+            animation: float-up 1s ease-out forwards;
+        }
+
+        @keyframes float-up {
+            0% { transform: translateY(0); opacity: 1; }
+            100% { transform: translateY(-50px); opacity: 0; }
+        }
+    </style>
+</head>
+<body>
+    <div id="stats">
+        <div>Score: <span id="score">0</span></div>
+        <div>Combos: <span id="combos">0</span></div>
+        <div>Level: <span id="level">1</span></div>
+    </div>
+
+    <div id="gameContainer"></div>
+
+    <div id="controls">
+        <button onclick="startGame()">New Game</button>
+        <button onclick="shuffle()">Shuffle</button>
+        <button onclick="activateSpecialPower()" id="specialButton">Special Power</button>
+    </div>
+
+    <div id="specialPower">
+        <div>Special Power</div>
+        <div class="power-meter">
+            <div class="power-fill" id="powerFill"></div>
+        </div>
+    </div>
+
+    <div id="gameOver">
+        <h2>Game Over!</h2>
+        <p>Final Score: <span id="finalScore">0</span></p>
+        <p>Max Combo: <span id="maxCombo">0</span></p>
+        <button onclick="startGame()">Play Again</button>
+    </div>
+
+    <script>
+        const GRID_SIZE = 6;
+        const COLORS = [
+            '#FF4444', '#44FF44', '#4444FF', 
+            '#FFFF44', '#FF44FF', '#44FFFF'
+        ];
+        const SPECIAL_COLORS = [
+            '#FFD700', '#FF1493', '#00FA9A', 
+            '#9400D3', '#FF8C00', '#1E90FF'
+        ];
+
+        let grid = [];
+        let score = 0;
+        let combos = 0;
+        let maxCombo = 0;
+        let level = 1;
+        let selectedCube = null;
+        let powerMeter = 0;
+
+        function createGrid() {
+            const container = document.getElementById('gameContainer');
+            container.style.gridTemplateColumns = `repeat(${GRID_SIZE}, 70px)`;
+            container.innerHTML = '';
+            grid = [];
+
+            for (let y = 0; y < GRID_SIZE; y++) {
+                grid[y] = [];
+                for (let x = 0; x < GRID_SIZE; x++) {
+                    const cube = document.createElement('div');
+                    cube.className = 'cube';
+                    cube.style.backgroundColor = getRandomColor();
+                    cube.dataset.x = x;
+                    cube.dataset.y = y;
+                    cube.addEventListener('click', () => handleCubeClick(x, y));
+                    container.appendChild(cube);
+                    grid[y][x] = cube;
+                }
+            }
+        }
+
+        function getRandomColor() {
+            return COLORS[Math.floor(Math.random() * COLORS.length)];
+        }
+
+        function handleCubeClick(x, y) {
+            const cube = grid[y][x];
+            
+            if (selectedCube === cube) {
+                cube.classList.remove('selected');
+                selectedCube = null;
+                return;
+            }
+
+            if (selectedCube) {
+                if (isAdjacent(selectedCube, cube) && 
+                    selectedCube.style.backgroundColor === cube.style.backgroundColor) {
+                    matchCubes(selectedCube, cube);
+                }
+                selectedCube.classList.remove('selected');
+                selectedCube = null;
+            } else {
+                cube.classList.add('selected');
+                selectedCube = cube;
+            }
+        }
+
+        function isAdjacent(cube1, cube2) {
+            const x1 = parseInt(cube1.dataset.x);
+            const y1 = parseInt(cube1.dataset.y);
+            const x2 = parseInt(cube2.dataset.x);
+            const y2 = parseInt(cube2.dataset.y);
+
+            return (Math.abs(x1 - x2) === 1 && y1 === y2) || 
+                   (Math.abs(y1 - y2) === 1 && x1 === x2);
+        }
+
+        function matchCubes(cube1, cube2) {
+            const color = SPECIAL_COLORS[Math.floor(Math.random() * SPECIAL_COLORS.length)];
+            cube1.style.backgroundColor = color;
+            cube2.style.backgroundColor = getRandomColor();
+
+            cube1.classList.add('matched');
+            setTimeout(() => cube1.classList.remove('matched'), 500);
+
+            score += 10 * (level + combos);
+            combos++;
+            maxCombo = Math.max(maxCombo, combos);
+            powerMeter = Math.min(100, powerMeter + 10);
+
+            updateStats();
+            showComboText(cube1);
+            checkForChains(parseInt(cube1.dataset.x), parseInt(cube1.dataset.y));
+        }
+
+        function showComboText(cube) {
+            const text = document.createElement('div');
+            text.className = 'combo-text';
+            text.textContent = `${combos}x Combo!`;
+            text.style.left = `${cube.offsetLeft}px`;
+            text.style.top = `${cube.offsetTop}px`;
+            document.body.appendChild(text);
+            setTimeout(() => text.remove(), 1000);
+        }
+
+        function checkForChains(x, y) {
+            const matches = findMatches(x, y);
+            if (matches.length >= 3) {
+                matches.forEach(cube => {
+                    cube.style.backgroundColor = getRandomColor();
+                    cube.classList.add('matched');
+                    setTimeout(() => cube.classList.remove('matched'), 500);
+                });
+                score += matches.length * 20 * level;
+                updateStats();
+            }
+        }
+
+        function findMatches(x, y) {
+            const color = grid[y][x].style.backgroundColor;
+            const matches = [];
+            const checked = new Set();
+
+            function check(cx, cy) {
+                if (cx < 0 || cx >= GRID_SIZE || cy < 0 || cy >= GRID_SIZE) return;
+                const key = `${cx},${cy}`;
+                if (checked.has(key)) return;
+                checked.add(key);
+
+                if (grid[cy][cx].style.backgroundColor === color) {
+                    matches.push(grid[cy][cx]);
+                    check(cx + 1, cy);
+                    check(cx - 1, cy);
+                    check(cx, cy + 1);
+                    check(cx, cy - 1);
+                }
+            }
+
+            check(x, y);
+            return matches;
+        }
+
+        function shuffle() {
+            const colors = [];
+            for (let y = 0; y < GRID_SIZE; y++) {
+                for (let x = 0; x < GRID_SIZE; x++) {
+                    colors.push(grid[y][x].style.backgroundColor);
+                }
+            }
+
+            colors.sort(() => Math.random() - 0.5);
+
+            let index = 0;
+            for (let y = 0; y < GRID_SIZE; y++) {
+                for (let x = 0; x < GRID_SIZE; x++) {
+                    grid[y][x].style.backgroundColor = colors[index++];
+                }
+            }
+
+            combos = 0;
+            updateStats();
+        }
+
+        function activateSpecialPower() {
+            if (powerMeter < 100) return;
+
+            // Clear all cubes of the same color as selected cube
+            if (selectedCube) {
+                const color = selectedCube.style.backgroundColor;
+                let cleared = 0;
+                for (let y = 0; y < GRID_SIZE; y++) {
+                    for (let x = 0; x < GRID_SIZE; x++) {
+                        if (grid[y][x].style.backgroundColor === color) {
+                            grid[y][x].style.backgroundColor = getRandomColor();
+                            grid[y][x].classList.add('matched');
+                            setTimeout(() => grid[y][x].classList.remove('matched'), 500);
+                            cleared++;
+                        }
+                    }
+                }
+                score += cleared * 50;
+                powerMeter = 0;
+                updateStats();
+            }
+        }
+
+        function updateStats() {
+            document.getElementById('score').textContent = score;
+            document.getElementById('combos').textContent = combos;
+            document.getElementById('level').textContent = level;
+            document.getElementById('powerFill').style.width = `${powerMeter}%`;
+
+            if (score >= level * 1000) {
+                level++;
+                showLevelUp();
+            }
+        }
+
+        function showLevelUp() {
+            const text = document.createElement('div');
+            text.className = 'combo-text';
+            text.style.fontSize = '36px';
+            text.textContent = `Level ${level}!`;
+            text.style.left = '50%';
+            text.style.top = '50%';
+            text.style.transform = 'translate(-50%, -50%)';
+            document.body.appendChild(text);
+            setTimeout(() => text.remove(), 1500);
+        }
+
+        function startGame() {
+            score = 0;
+            combos = 0;
+            maxCombo = 0;
+            level = 1;
+            powerMeter = 0;
+            createGrid();
+            updateStats();
+            document.getElementById('gameOver').style.display = 'none';
+        }
+
+        startGame();
+    </script>
+</body>
+</html>

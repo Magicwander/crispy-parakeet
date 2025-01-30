@@ -1,0 +1,220 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Neon Vector Runner</title>
+    <style>
+        body {
+            margin: 0;
+            overflow: hidden;
+            background: #000;
+            font-family: 'Courier New', monospace;
+        }
+
+        #gameContainer {
+            position: relative;
+            width: 100vw;
+            height: 100vh;
+            background: linear-gradient(45deg, #0a0a2e, #1a1a4a);
+            overflow: hidden;
+        }
+
+        #player {
+            position: absolute;
+            width: 40px;
+            height: 40px;
+            background: #00f3ff;
+            clip-path: polygon(50% 0%, 100% 25%, 50% 100%, 0% 25%);
+            filter: drop-shadow(0 0 10px #00f3ff);
+            transition: all 0.1s;
+        }
+
+        .obstacle {
+            position: absolute;
+            width: 40px;
+            height: 40px;
+            background: #ff003c;
+            clip-path: polygon(50% 0%, 100% 50%, 50% 100%, 0% 50%);
+            filter: drop-shadow(0 0 10px #ff003c);
+        }
+
+        .powerup {
+            position: absolute;
+            width: 25px;
+            height: 25px;
+            background: #00ff88;
+            clip-path: circle(50% at 50% 50%);
+            animation: pulse 1s infinite;
+        }
+
+        #hud {
+            position: fixed;
+            top: 20px;
+            left: 20px;
+            color: #00ff88;
+            font-size: 24px;
+            text-shadow: 0 0 10px #00ff88;
+        }
+
+        @keyframes pulse {
+            0% { transform: scale(1); }
+            50% { transform: scale(1.2); }
+            100% { transform: scale(1); }
+        }
+
+        #gameOver {
+            display: none;
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            color: #ff003c;
+            text-align: center;
+            text-shadow: 0 0 10px #ff003c;
+        }
+    </style>
+</head>
+<body>
+    <div id="gameContainer">
+        <div id="hud">SCORE: <span id="score">0</span></div>
+        <div id="player"></div>
+        <div id="gameOver">
+            <h1>SYSTEM FAILURE</h1>
+            <p>Final Score: <span id="finalScore">0</span></p>
+            <button onclick="resetGame()" style="color: #00ff88; background: none; border: 2px solid #00ff88; padding: 10px 20px; cursor: pointer;">REBOOT SYSTEM</button>
+        </div>
+    </div>
+
+    <script>
+        const player = document.getElementById('player');
+        const gameContainer = document.getElementById('gameContainer');
+        const scoreElement = document.getElementById('score');
+        const gameOverScreen = document.getElementById('gameOver');
+        const finalScoreElement = document.getElementById('finalScore');
+
+        let score = 0;
+        let isGameActive = true;
+        let playerX = window.innerWidth / 2;
+        let speed = 5;
+        let lanes = [0.25, 0.5, 0.75].map(w => window.innerWidth * w);
+
+        function initPlayer() {
+            player.style.left = `${lanes[1] - 20}px`;
+            player.style.bottom = '50px';
+        }
+
+        function createObstacle() {
+            const obstacle = document.createElement('div');
+            obstacle.className = 'obstacle';
+            const lane = lanes[Math.floor(Math.random() * lanes.length)];
+            obstacle.style.left = `${lane - 20}px`;
+            obstacle.style.top = '-40px';
+            gameContainer.appendChild(obstacle);
+
+            let obstacleInterval = setInterval(() => {
+                if (!isGameActive) {
+                    clearInterval(obstacleInterval);
+                    return;
+                }
+
+                const currentTop = parseInt(obstacle.style.top);
+                obstacle.style.top = `${currentTop + speed}px`;
+
+                // Collision detection
+                if (currentTop > window.innerHeight - 100 && 
+                    Math.abs(parseInt(player.style.left) - parseInt(obstacle.style.left)) < 40) {
+                    endGame();
+                }
+
+                if (currentTop > window.innerHeight) {
+                    obstacle.remove();
+                    clearInterval(obstacleInterval);
+                    score += 10;
+                    scoreElement.textContent = score;
+                    speed = Math.min(15, speed + 0.1);
+                }
+            }, 16);
+        }
+
+        function createPowerup() {
+            if (Math.random() < 0.1) {
+                const powerup = document.createElement('div');
+                powerup.className = 'powerup';
+                const lane = lanes[Math.floor(Math.random() * lanes.length)];
+                powerup.style.left = `${lane - 12.5}px`;
+                powerup.style.top = '-25px';
+                gameContainer.appendChild(powerup);
+
+                let powerupInterval = setInterval(() => {
+                    if (!isGameActive) {
+                        clearInterval(powerupInterval);
+                        return;
+                    }
+
+                    const currentTop = parseInt(powerup.style.top);
+                    powerup.style.top = `${currentTop + speed}px`;
+
+                    // Collection check
+                    if (currentTop > window.innerHeight - 100 && 
+                        Math.abs(parseInt(player.style.left) - parseInt(powerup.style.left)) < 40) {
+                        score += 50;
+                        speed = Math.max(5, speed - 2);
+                        powerup.remove();
+                        clearInterval(powerupInterval);
+                    }
+
+                    if (currentTop > window.innerHeight) {
+                        powerup.remove();
+                        clearInterval(powerupInterval);
+                    }
+                }, 16);
+            }
+        }
+
+        function endGame() {
+            isGameActive = false;
+            gameOverScreen.style.display = 'block';
+            finalScoreElement.textContent = score;
+        }
+
+        function resetGame() {
+            // Clear existing elements
+            document.querySelectorAll('.obstacle, .powerup').forEach(el => el.remove());
+            gameOverScreen.style.display = 'none';
+            score = 0;
+            speed = 5;
+            isGameActive = true;
+            scoreElement.textContent = '0';
+            initPlayer();
+            gameLoop();
+        }
+
+        function handleKeyPress(e) {
+            if (!isGameActive) return;
+
+            const currentLane = lanes.indexOf(parseInt(player.style.left) + 20);
+            
+            if (e.key === 'ArrowLeft' && currentLane > 0) {
+                player.style.left = `${lanes[currentLane - 1] - 20}px`;
+            }
+            if (e.key === 'ArrowRight' && currentLane < lanes.length - 1) {
+                player.style.left = `${lanes[currentLane + 1] - 20}px`;
+            }
+        }
+
+        function gameLoop() {
+            if (!isGameActive) return;
+            
+            createObstacle();
+            createPowerup();
+            setTimeout(gameLoop, 1000);
+        }
+
+        // Initialize game
+        document.addEventListener('keydown', handleKeyPress);
+        initPlayer();
+        gameLoop();
+    </script>
+</body>
+</html>

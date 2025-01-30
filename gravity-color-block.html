@@ -1,0 +1,318 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Bubble Pop</title>
+    <style>
+        body {
+            margin: 0;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            background: #1a1a2e;
+            font-family: Arial, sans-serif;
+            color: white;
+        }
+
+        #gameArea {
+            width: 400px;
+            height: 600px;
+            background: #162447;
+            position: relative;
+            border-radius: 10px;
+            overflow: hidden;
+            box-shadow: 0 0 20px rgba(0,0,0,0.5);
+        }
+
+        .bubble {
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            position: absolute;
+            cursor: pointer;
+            transition: transform 0.2s;
+        }
+
+        .bubble:hover {
+            transform: scale(1.1);
+        }
+
+        #shooter {
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            position: absolute;
+            bottom: 20px;
+            left: 180px;
+            background: #ff4444;
+        }
+
+        #score {
+            position: absolute;
+            top: 20px;
+            left: 20px;
+            font-size: 24px;
+        }
+
+        .pop {
+            animation: popAnimation 0.3s ease-out;
+        }
+
+        @keyframes popAnimation {
+            0% { transform: scale(1); }
+            50% { transform: scale(1.2); }
+            100% { transform: scale(0); }
+        }
+
+        #gameOver {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background: rgba(0,0,0,0.8);
+            padding: 20px;
+            border-radius: 10px;
+            text-align: center;
+            display: none;
+        }
+
+        button {
+            background: #e94560;
+            border: none;
+            color: white;
+            padding: 10px 20px;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 16px;
+            margin-top: 10px;
+        }
+
+        button:hover {
+            background: #d63851;
+        }
+
+        .particle {
+            position: absolute;
+            width: 6px;
+            height: 6px;
+            border-radius: 50%;
+            pointer-events: none;
+        }
+    </style>
+</head>
+<body>
+    <div id="gameArea">
+        <div id="score">Score: 0</div>
+        <div id="shooter"></div>
+        <div id="gameOver">
+            <h2>Game Over!</h2>
+            <p>Final Score: <span id="finalScore">0</span></p>
+            <button onclick="startGame()">Play Again</button>
+        </div>
+    </div>
+
+    <script>
+        const colors = ['#ff4444', '#44ff44', '#4444ff', '#ffff44', '#ff44ff'];
+        let bubbles = [];
+        let score = 0;
+        let isGameOver = false;
+        let currentColor = '';
+
+        function startGame() {
+            bubbles = [];
+            score = 0;
+            isGameOver = false;
+            document.getElementById('score').textContent = 'Score: 0';
+            document.getElementById('gameOver').style.display = 'none';
+            document.querySelectorAll('.bubble').forEach(b => b.remove());
+            currentColor = getRandomColor();
+            document.getElementById('shooter').style.background = currentColor;
+            createInitialBubbles();
+        }
+
+        function createInitialBubbles() {
+            for(let i = 0; i < 5; i++) {
+                for(let j = 0; j < 8; j++) {
+                    createBubble(j * 50, i * 50, getRandomColor());
+                }
+            }
+        }
+
+        function getRandomColor() {
+            return colors[Math.floor(Math.random() * colors.length)];
+        }
+
+        function createBubble(x, y, color) {
+            const bubble = document.createElement('div');
+            bubble.className = 'bubble';
+            bubble.style.left = x + 'px';
+            bubble.style.top = y + 'px';
+            bubble.style.background = color;
+            document.getElementById('gameArea').appendChild(bubble);
+            bubbles.push({ element: bubble, x, y, color });
+            return bubble;
+        }
+
+        function shootBubble(event) {
+            if(isGameOver) return;
+
+            const gameArea = document.getElementById('gameArea');
+            const rect = gameArea.getBoundingClientRect();
+            const x = event.clientX - rect.left;
+            const y = event.clientY - rect.top;
+
+            const bubble = createBubble(180, 540, currentColor);
+            const angle = Math.atan2(y - 540, x - 180);
+            const speed = 10;
+            const dx = Math.cos(angle) * speed;
+            const dy = Math.sin(angle) * speed;
+
+            function animate() {
+                const bubbleRect = bubble.getBoundingClientRect();
+                const x = bubbleRect.left - rect.left;
+                const y = bubbleRect.top - rect.top;
+
+                if(x < 0 || x > 360 || y < 0) {
+                    snapToGrid(bubble, x, y);
+                    return;
+                }
+
+                // Check collision with other bubbles
+                for(let other of bubbles) {
+                    if(other.element === bubble) continue;
+                    const dx = x - other.x;
+                    const dy = y - other.y;
+                    const distance = Math.sqrt(dx * dx + dy * dy);
+                    if(distance < 40) {
+                        snapToGrid(bubble, x, y);
+                        return;
+                    }
+                }
+
+                bubble.style.left = (x + dx) + 'px';
+                bubble.style.top = (y + dy) + 'px';
+                requestAnimationFrame(animate);
+            }
+
+            animate();
+            currentColor = getRandomColor();
+            document.getElementById('shooter').style.background = currentColor;
+        }
+
+        function snapToGrid(bubble, x, y) {
+            const gridX = Math.round(x / 50) * 50;
+            const gridY = Math.round(y / 50) * 50;
+            bubble.style.left = gridX + 'px';
+            bubble.style.top = gridY + 'px';
+
+            const matchedBubbles = findMatches(gridX, gridY, bubble.style.background);
+            if(matchedBubbles.length >= 3) {
+                popBubbles(matchedBubbles);
+            }
+
+            checkGameOver();
+        }
+
+        function findMatches(x, y, color) {
+            const matches = new Set();
+            const toCheck = [{x, y}];
+            
+            while(toCheck.length > 0) {
+                const current = toCheck.pop();
+                const key = `${current.x},${current.y}`;
+                
+                if(matches.has(key)) continue;
+                matches.add(key);
+
+                const neighbors = [
+                    {x: current.x + 50, y: current.y},
+                    {x: current.x - 50, y: current.y},
+                    {x: current.x, y: current.y + 50},
+                    {x: current.x, y: current.y - 50}
+                ];
+
+                for(let neighbor of neighbors) {
+                    const matchingBubble = bubbles.find(b => 
+                        b.x === neighbor.x && 
+                        b.y === neighbor.y && 
+                        b.element.style.background === color
+                    );
+                    if(matchingBubble) {
+                        toCheck.push(neighbor);
+                    }
+                }
+            }
+
+            return Array.from(matches).map(key => {
+                const [x, y] = key.split(',');
+                return bubbles.find(b => b.x === parseInt(x) && b.y === parseInt(y));
+            }).filter(Boolean);
+        }
+
+        function popBubbles(matchedBubbles) {
+            matchedBubbles.forEach(bubble => {
+                bubble.element.classList.add('pop');
+                createPopParticles(bubble.x, bubble.y, bubble.element.style.background);
+                setTimeout(() => {
+                    bubble.element.remove();
+                    bubbles = bubbles.filter(b => b !== bubble);
+                }, 300);
+            });
+
+            score += matchedBubbles.length * 10;
+            document.getElementById('score').textContent = `Score: ${score}`;
+        }
+
+        function createPopParticles(x, y, color) {
+            for(let i = 0; i < 8; i++) {
+                const particle = document.createElement('div');
+                particle.className = 'particle';
+                particle.style.left = (x + 20) + 'px';
+                particle.style.top = (y + 20) + 'px';
+                particle.style.background = color;
+                
+                const angle = (i / 8) * Math.PI * 2;
+                const velocity = {
+                    x: Math.cos(angle) * 5,
+                    y: Math.sin(angle) * 5
+                };
+
+                document.getElementById('gameArea').appendChild(particle);
+
+                let frame = 0;
+                function animateParticle() {
+                    frame++;
+                    const currentX = parseInt(particle.style.left);
+                    const currentY = parseInt(particle.style.top);
+                    
+                    particle.style.left = (currentX + velocity.x) + 'px';
+                    particle.style.top = (currentY + velocity.y) + 'px';
+                    particle.style.opacity = 1 - (frame / 30);
+
+                    if(frame < 30) {
+                        requestAnimationFrame(animateParticle);
+                    } else {
+                        particle.remove();
+                    }
+                }
+
+                requestAnimationFrame(animateParticle);
+            }
+        }
+
+        function checkGameOver() {
+            const lowestBubble = bubbles.reduce((lowest, bubble) => 
+                Math.max(lowest, bubble.y), 0);
+            
+            if(lowestBubble >= 500) {
+                isGameOver = true;
+                document.getElementById('gameOver').style.display = 'block';
+                document.getElementById('finalScore').textContent = score;
+            }
+        }
+
+        document.getElementById('gameArea').addEventListener('click', shootBubble);
+        startGame();
+    </script>
+</body>
+</html>

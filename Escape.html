@@ -1,0 +1,215 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Glassy Vortex</title>
+    <style>
+        body {
+            margin: 0;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            background: linear-gradient(45deg, #4f6cfe, #9d50bb);
+            font-family: Arial, sans-serif;
+            overflow: hidden;
+        }
+
+        #gameContainer {
+            position: relative;
+            width: 600px;
+            height: 600px;
+            background: rgba(255, 255, 255, 0.1);
+            backdrop-filter: blur(10px);
+            border-radius: 50%;
+            border: 2px solid rgba(255, 255, 255, 0.3);
+            box-shadow: 0 0 50px rgba(0, 0, 0, 0.2);
+        }
+
+        #player {
+            position: absolute;
+            width: 30px;
+            height: 30px;
+            background: rgba(255, 255, 255, 0.9);
+            border-radius: 50%;
+            box-shadow: 0 0 20px rgba(255, 255, 255, 0.5);
+            transition: all 0.1s;
+            z-index: 2;
+        }
+
+        .obstacle {
+            position: absolute;
+            width: 80px;
+            height: 20px;
+            background: rgba(255, 255, 255, 0.15);
+            border-radius: 10px;
+            backdrop-filter: blur(5px);
+            border: 1px solid rgba(255, 255, 255, 0.3);
+        }
+
+        #hud {
+            position: fixed;
+            top: 20px;
+            color: white;
+            font-size: 24px;
+            text-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+        }
+
+        #gameOver {
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background: rgba(255, 255, 255, 0.2);
+            padding: 30px 50px;
+            border-radius: 20px;
+            text-align: center;
+            backdrop-filter: blur(10px);
+            color: white;
+            display: none;
+        }
+
+        button {
+            background: rgba(255, 255, 255, 0.3);
+            border: none;
+            padding: 12px 30px;
+            border-radius: 8px;
+            color: white;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+
+        button:hover {
+            background: rgba(255, 255, 255, 0.4);
+        }
+    </style>
+</head>
+<body>
+    <div id="hud">Score: <span id="score">0</span></div>
+    <div id="gameContainer">
+        <div id="player"></div>
+        <div id="gameOver">
+            <h2>Game Over!</h2>
+            <p>Final Score: <span id="finalScore">0</span></p>
+            <button onclick="startGame()">Play Again</button>
+        </div>
+    </div>
+
+    <script>
+        const player = document.getElementById('player');
+        const gameContainer = document.getElementById('gameContainer');
+        const scoreElement = document.getElementById('score');
+        const gameOverScreen = document.getElementById('gameOver');
+        const finalScoreElement = document.getElementById('finalScore');
+
+        let playerX = 285;
+        let playerY = 285;
+        let score = 0;
+        let gameActive = true;
+        let obstacles = [];
+        let rotationAngle = 0;
+        let speedMultiplier = 1;
+
+        function createObstacle() {
+            const obstacle = document.createElement('div');
+            obstacle.className = 'obstacle';
+            
+            // Position on the edge of circular container
+            const angle = Math.random() * Math.PI * 2;
+            const radius = 280;
+            
+            obstacle.style.left = (radius * Math.cos(angle) + 260) + 'px';
+            obstacle.style.top = (radius * Math.sin(angle) + 260) + 'px';
+            
+            gameContainer.appendChild(obstacle);
+            obstacles.push({
+                element: obstacle,
+                angle: angle,
+                speed: (Math.random() * 0.02 + 0.01) * (Math.random() > 0.5 ? 1 : -1)
+            });
+        }
+
+        function updateObstacles() {
+            rotationAngle += 0.005 * speedMultiplier;
+            obstacles.forEach(obstacle => {
+                const newAngle = obstacle.angle + obstacle.speed * speedMultiplier;
+                const radius = 280;
+                
+                obstacle.element.style.left = (radius * Math.cos(newAngle) + 260) + 'px';
+                obstacle.element.style.top = (radius * Math.sin(newAngle) + 260) + 'px';
+                obstacle.angle = newAngle;
+
+                // Check collision
+                const rect = obstacle.element.getBoundingClientRect();
+                const playerRect = player.getBoundingClientRect();
+                
+                if (!(playerRect.right < rect.left || 
+                      playerRect.left > rect.right || 
+                      playerRect.bottom < rect.top || 
+                      playerRect.top > rect.bottom)) {
+                    gameOver();
+                }
+            });
+
+            gameContainer.style.transform = `rotate(${rotationAngle}rad)`;
+        }
+
+        function gameOver() {
+            if (!gameActive) return;
+            gameActive = false;
+            finalScoreElement.textContent = score;
+            gameOverScreen.style.display = 'block';
+        }
+
+        function startGame() {
+            // Reset game state
+            playerX = 285;
+            playerY = 285;
+            score = 0;
+            speedMultiplier = 1;
+            gameActive = true;
+            scoreElement.textContent = '0';
+            gameOverScreen.style.display = 'none';
+            
+            // Clear obstacles
+            obstacles.forEach(o => o.element.remove());
+            obstacles = [];
+            
+            // Create initial obstacles
+            for(let i = 0; i < 8; i++) {
+                createObstacle();
+            }
+        }
+
+        function handleKeyPress(e) {
+            if (!gameActive) return;
+            
+            const speed = 20;
+            switch(e.key) {
+                case 'ArrowUp': playerY = Math.max(10, playerY - speed); break;
+                case 'ArrowDown': playerY = Math.min(560, playerY + speed); break;
+                case 'ArrowLeft': playerX = Math.max(10, playerX - speed); break;
+                case 'ArrowRight': playerX = Math.min(560, playerX + speed); break;
+            }
+            player.style.left = playerX + 'px';
+            player.style.top = playerY + 'px';
+            
+            // Increase difficulty
+            score++;
+            scoreElement.textContent = score;
+            speedMultiplier = 1 + score/500;
+        }
+
+        // Game loop
+        function gameLoop() {
+            if (gameActive) {
+                updateObstacles();
+                requestAnimationFrame(gameLoop);
+            }
+        }
+
+        document.addEventListener('keydown', handleKeyPress);
+        startGame();
+        gameLoop();
+    </script>
+</body>
+</html>

@@ -1,0 +1,489 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>QuantumPulse</title>
+    <style>
+        body {
+            margin: 0;
+            padding: 20px;
+            background: #111827;
+            font-family: Arial, sans-serif;
+            color: white;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            min-height: 100vh;
+            overflow-x: hidden;
+        }
+
+        #gameContainer {
+            position: relative;
+            width: 600px;
+            height: 600px;
+            margin: 20px;
+            background: rgba(255, 255, 255, 0.05);
+            border-radius: 15px;
+            box-shadow: 0 0 30px rgba(0, 0, 0, 0.5);
+            overflow: hidden;
+        }
+
+        .quantum-cell {
+            position: absolute;
+            width: 60px;
+            height: 60px;
+            border-radius: 50%;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            font-size: 24px;
+            user-select: none;
+        }
+
+        .quantum-cell::before {
+            content: '';
+            position: absolute;
+            inset: 5px;
+            border-radius: 50%;
+            background: radial-gradient(circle at 30% 30%, rgba(255,255,255,0.4), transparent);
+            opacity: 0.5;
+        }
+
+        .quantum-cell:hover {
+            transform: scale(1.1);
+            z-index: 10;
+        }
+
+        .quantum-cell.active {
+            animation: pulse 2s infinite;
+        }
+
+        @keyframes pulse {
+            0% { transform: scale(1); }
+            50% { transform: scale(1.1); box-shadow: 0 0 20px currentColor; }
+            100% { transform: scale(1); }
+        }
+
+        .particle {
+            position: absolute;
+            width: 4px;
+            height: 4px;
+            background: white;
+            border-radius: 50%;
+            pointer-events: none;
+        }
+
+        #stats {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 20px;
+            background: rgba(255, 255, 255, 0.1);
+            padding: 20px;
+            border-radius: 10px;
+            width: 600px;
+            margin-bottom: 20px;
+            text-align: center;
+        }
+
+        .stat {
+            font-size: 20px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+
+        .stat-value {
+            font-size: 24px;
+            font-weight: bold;
+            color: #4CAF50;
+            margin-top: 5px;
+        }
+
+        #energy-meter {
+            position: absolute;
+            top: 20px;
+            right: 20px;
+            width: 20px;
+            height: 200px;
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 10px;
+            overflow: hidden;
+        }
+
+        #energy-fill {
+            position: absolute;
+            bottom: 0;
+            width: 100%;
+            background: linear-gradient(to top, #4CAF50, #8BC34A);
+            transition: height 0.3s ease;
+        }
+
+        .chain-text {
+            position: absolute;
+            color: white;
+            font-size: 24px;
+            font-weight: bold;
+            pointer-events: none;
+            animation: float-up 1s ease-out forwards;
+            text-shadow: 0 0 10px rgba(255, 255, 255, 0.5);
+        }
+
+        @keyframes float-up {
+            0% { transform: translateY(0); opacity: 1; }
+            100% { transform: translateY(-50px); opacity: 0; }
+        }
+
+        button {
+            padding: 12px 25px;
+            font-size: 18px;
+            background: linear-gradient(45deg, #4CAF50, #45a049);
+            border: none;
+            color: white;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            margin: 10px;
+        }
+
+        button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(76,175,80,0.4);
+        }
+
+        #pattern-display {
+            position: absolute;
+            left: 20px;
+            top: 20px;
+            background: rgba(255, 255, 255, 0.1);
+            padding: 15px;
+            border-radius: 10px;
+            font-size: 16px;
+        }
+
+        .pattern-icon {
+            display: inline-block;
+            width: 20px;
+            height: 20px;
+            border-radius: 50%;
+            margin: 0 5px;
+        }
+    </style>
+</head>
+<body>
+    <div id="stats">
+        <div class="stat">
+            Score
+            <span id="score" class="stat-value">0</span>
+        </div>
+        <div class="stat">
+            Level
+            <span id="level" class="stat-value">1</span>
+        </div>
+        <div class="stat">
+            Chains
+            <span id="chains" class="stat-value">0</span>
+        </div>
+    </div>
+
+    <div id="gameContainer">
+        <div id="pattern-display">
+            Target Pattern: <span id="current-pattern"></span>
+        </div>
+        <div id="energy-meter">
+            <div id="energy-fill"></div>
+        </div>
+    </div>
+
+    <div id="controls">
+        <button onclick="startGame()">New Game</button>
+        <button onclick="activateQuantumSurge()" id="surgeButton">Quantum Surge</button>
+    </div>
+    <script>
+        const GRID_SIZE = 8;
+        const CELL_SIZE = 60;
+        const COLORS = [
+            '#FF3366', // Red
+            '#33FF66', // Green
+            '#3366FF', // Blue
+            '#FFFF33', // Yellow
+            '#FF33FF', // Purple
+            '#33FFFF'  // Cyan
+        ];
+    
+        const PATTERNS = [
+            'Linear',     // Same color in a line
+            'Triangle',   // Three cells forming a triangle
+            'Square',     // Four cells in a square
+            'Cross',      // Five cells in a cross pattern
+            'Diamond'     // Four cells in a diamond shape
+        ];
+    
+        let cells = [];
+        let score = 0;
+        let level = 1;
+        let chains = 0;
+        let energy = 0;
+        let selectedCells = [];
+        let currentPattern = '';
+        let isGameActive = false;
+    
+        function startGame() {
+            clearBoard();
+            score = 0;
+            level = 1;
+            chains = 0;
+            energy = 0;
+            isGameActive = true;
+            createBoard();
+            setNewPattern();
+            updateStats();
+            updateEnergyMeter();
+        }
+    
+        function createBoard() {
+            const container = document.getElementById('gameContainer');
+            
+            for (let i = 0; i < GRID_SIZE * GRID_SIZE; i++) {
+                const cell = createCell(i);
+                cells.push(cell);
+                container.appendChild(cell.element);
+            }
+    
+            positionCells();
+        }
+    
+        function createCell(index) {
+            const element = document.createElement('div');
+            element.className = 'quantum-cell';
+            const color = COLORS[Math.floor(Math.random() * COLORS.length)];
+            
+            return {
+                element,
+                color,
+                index,
+                x: index % GRID_SIZE,
+                y: Math.floor(index / GRID_SIZE),
+                active: false
+            };
+        }
+    
+        function positionCells() {
+            cells.forEach(cell => {
+                cell.element.style.left = (cell.x * CELL_SIZE + 60) + 'px';
+                cell.element.style.top = (cell.y * CELL_SIZE + 60) + 'px';
+                cell.element.style.backgroundColor = cell.color;
+                
+                cell.element.onclick = () => handleCellClick(cell);
+            });
+        }
+    
+        function handleCellClick(cell) {
+            if (!isGameActive) return;
+    
+            if (selectedCells.includes(cell)) {
+                // Deselect cell
+                selectedCells = selectedCells.filter(c => c !== cell);
+                cell.element.style.transform = 'scale(1)';
+                cell.active = false;
+            } else {
+                // Select cell if it matches pattern requirements
+                if (isValidSelection(cell)) {
+                    selectedCells.push(cell);
+                    cell.element.style.transform = 'scale(1.1)';
+                    cell.active = true;
+                    
+                    // Check if pattern is complete
+                    if (isPatternComplete()) {
+                        processPattern();
+                    }
+                }
+            }
+        }
+    
+        function isValidSelection(cell) {
+            if (selectedCells.length === 0) return true;
+            
+            // Check if adjacent to last selected cell
+            const lastCell = selectedCells[selectedCells.length - 1];
+            const dx = Math.abs(cell.x - lastCell.x);
+            const dy = Math.abs(cell.y - lastCell.y);
+            
+            return (dx <= 1 && dy <= 1) && (dx + dy <= 2);
+        }
+    
+        function isPatternComplete() {
+            switch (currentPattern) {
+                case 'Linear':
+                    return selectedCells.length >= 3 && areAllSameColor();
+                case 'Triangle':
+                    return selectedCells.length === 3 && isTrianglePattern();
+                case 'Square':
+                    return selectedCells.length === 4 && isSquarePattern();
+                case 'Cross':
+                    return selectedCells.length === 5 && isCrossPattern();
+                case 'Diamond':
+                    return selectedCells.length === 4 && isDiamondPattern();
+            }
+            return false;
+        }
+    
+        function areAllSameColor() {
+            const color = selectedCells[0].color;
+            return selectedCells.every(cell => cell.color === color);
+        }
+    
+        function processPattern() {
+            // Calculate score based on pattern and level
+            const baseScore = selectedCells.length * 100;
+            const patternBonus = getPatternBonus();
+            const levelBonus = level * 0.5;
+            const totalScore = Math.floor(baseScore * patternBonus * (1 + levelBonus));
+            
+            score += totalScore;
+            chains++;
+            energy = Math.min(100, energy + 20);
+    
+            // Show chain effect
+            showChainEffect(totalScore);
+            
+            // Replace matched cells
+            selectedCells.forEach(cell => {
+                cell.color = COLORS[Math.floor(Math.random() * COLORS.length)];
+                cell.element.style.backgroundColor = cell.color;
+                cell.element.style.transform = 'scale(1)';
+                cell.active = false;
+                
+                createParticleEffect(cell);
+            });
+    
+            selectedCells = [];
+            updateStats();
+            updateEnergyMeter();
+            checkLevelUp();
+            setNewPattern();
+        }
+    
+        function getPatternBonus() {
+            switch (currentPattern) {
+                case 'Linear': return 1;
+                case 'Triangle': return 1.5;
+                case 'Square': return 2;
+                case 'Cross': return 2.5;
+                case 'Diamond': return 3;
+                default: return 1;
+            }
+        }
+    
+        function createParticleEffect(cell) {
+            for (let i = 0; i < 8; i++) {
+                const particle = document.createElement('div');
+                particle.className = 'particle';
+                particle.style.backgroundColor = cell.color;
+                particle.style.left = (cell.x * CELL_SIZE + 80) + 'px';
+                particle.style.top = (cell.y * CELL_SIZE + 80) + 'px';
+    
+                const angle = (i / 8) * Math.PI * 2;
+                const velocity = {
+                    x: Math.cos(angle) * 5,
+                    y: Math.sin(angle) * 5
+                };
+    
+                document.getElementById('gameContainer').appendChild(particle);
+    
+                let frame = 0;
+                const animate = () => {
+                    frame++;
+                    const x = parseFloat(particle.style.left);
+                    const y = parseFloat(particle.style.top);
+                    
+                    particle.style.left = (x + velocity.x) + 'px';
+                    particle.style.top = (y + velocity.y) + 'px';
+                    particle.style.opacity = 1 - (frame / 30);
+    
+                    if (frame < 30) {
+                        requestAnimationFrame(animate);
+                    } else {
+                        particle.remove();
+                    }
+                };
+                
+                requestAnimationFrame(animate);
+            }
+        }
+    
+        function showChainEffect(points) {
+            const text = document.createElement('div');
+            text.className = 'chain-text';
+            text.textContent = `+${points}`;
+            text.style.left = '50%';
+            text.style.top = '50%';
+            text.style.transform = 'translate(-50%, -50%)';
+            
+            document.getElementById('gameContainer').appendChild(text);
+            setTimeout(() => text.remove(), 1000);
+        }
+    
+        function checkLevelUp() {
+            if (chains >= level * 5) {
+                level++;
+                showLevelUpEffect();
+            }
+        }
+    
+        function showLevelUpEffect() {
+            const text = document.createElement('div');
+            text.className = 'chain-text';
+            text.textContent = `Level ${level}!`;
+            text.style.fontSize = '36px';
+            text.style.left = '50%';
+            text.style.top = '50%';
+            text.style.transform = 'translate(-50%, -50%)';
+            
+            document.getElementById('gameContainer').appendChild(text);
+            setTimeout(() => text.remove(), 1500);
+        }
+    
+        function setNewPattern() {
+            currentPattern = PATTERNS[Math.floor(Math.random() * PATTERNS.length)];
+            document.getElementById('current-pattern').textContent = currentPattern;
+        }
+    
+        function activateQuantumSurge() {
+            if (energy < 100) return;
+            
+            energy = 0;
+            updateEnergyMeter();
+            
+            // Create surge effect
+            cells.forEach(cell => {
+                const delay = Math.random() * 500;
+                setTimeout(() => {
+                    cell.color = COLORS[Math.floor(Math.random() * COLORS.length)];
+                    cell.element.style.backgroundColor = cell.color;
+                    createParticleEffect(cell);
+                }, delay);
+            });
+        }
+    
+        function updateStats() {
+            document.getElementById('score').textContent = score;
+            document.getElementById('level').textContent = level;
+            document.getElementById('chains').textContent = chains;
+        }
+
+        function updateEnergyMeter() {
+            document.getElementById('energy-fill').style.height = energy + '%';
+        }
+    
+        function clearBoard() {
+            cells.forEach(cell => cell.element.remove());
+            cells = [];
+        }
+    
+        // Start the game when the page loads
+        startGame();
+    </script>
+    </body>
+    </html>
+    

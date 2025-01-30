@@ -1,0 +1,210 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Quantum Tiles</title>
+    <style>
+        body {
+            margin: 0;
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            background: linear-gradient(135deg, #1a1a2e, #16213e);
+            font-family: 'Arial', sans-serif;
+            color: white;
+        }
+
+        .game-container {
+            position: relative;
+            padding: 30px;
+            background: rgba(255, 255, 255, 0.05);
+            border-radius: 20px;
+            backdrop-filter: blur(15px);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            margin-top: 30px;
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
+        }
+
+        .grid {
+            display: grid;
+            grid-template-columns: repeat(5, 1fr);
+            gap: 15px;
+            margin: 20px 0;
+        }
+
+        .tile {
+            width: 60px;
+            height: 60px;
+            border-radius: 12px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            position: relative;
+            overflow: hidden;
+            background: rgba(255, 255, 255, 0.1);
+        }
+
+        .tile::before {
+            content: '';
+            position: absolute;
+            inset: 0;
+            background: linear-gradient(45deg, 
+                rgba(255,255,255,0.15), 
+                transparent 60%);
+        }
+
+        .tile.active {
+            background: rgba(100, 255, 218, 0.2);
+            box-shadow: 0 0 20px rgba(100, 255, 218, 0.3);
+        }
+
+        .tile.entangled {
+            background: rgba(255, 100, 218, 0.2);
+            box-shadow: 0 0 20px rgba(255, 100, 218, 0.3);
+        }
+
+        .quantum-state {
+            position: absolute;
+            width: 100%;
+            height: 100%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 24px;
+            opacity: 0.8;
+        }
+
+        .controls {
+            display: flex;
+            gap: 15px;
+            margin-top: 20px;
+        }
+
+        button {
+            padding: 12px 25px;
+            background: rgba(255, 255, 255, 0.1);
+            border: none;
+            border-radius: 8px;
+            color: white;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            backdrop-filter: blur(5px);
+        }
+
+        button:hover {
+            background: rgba(255, 255, 255, 0.2);
+        }
+
+        .score-board {
+            text-align: center;
+            font-size: 20px;
+            margin-bottom: 20px;
+        }
+    </style>
+</head>
+<body>
+    <div class="game-container">
+        <div class="score-board">
+            Quantum States: <span id="score">0</span><br>
+            Chain: <span id="chain">0</span>
+        </div>
+        <div class="grid" id="grid"></div>
+        <div class="controls">
+            <button onclick="collapseAll()">Collapse</button>
+            <button onclick="newGame()">New Game</button>
+        </div>
+    </div>
+
+    <script>
+        let score = 0;
+        let chain = 0;
+        let tiles = [];
+        const colors = ['#64ffda', '#ff64da', '#64daff'];
+        const states = ['↑', '→', '↓', '←', '↗', '↘', '↙', '↖'];
+
+        function createTile() {
+            const tile = document.createElement('div');
+            tile.className = 'tile';
+            
+            const quantumState = document.createElement('div');
+            quantumState.className = 'quantum-state';
+            quantumState.textContent = states[Math.floor(Math.random() * states.length)];
+            
+            tile.appendChild(quantumState);
+            tile.addEventListener('click', () => toggleTile(tile));
+            
+            return tile;
+        }
+
+        function toggleTile(tile) {
+            if (!tile.classList.contains('active') && !tile.classList.contains('entangled')) {
+                tile.classList.add('active');
+                chain++;
+                score += chain;
+                updateScore();
+                createEntanglement(tile);
+            } else if (tile.classList.contains('active')) {
+                tile.classList.remove('active');
+                chain = 0;
+            }
+        }
+
+        function createEntanglement(originTile) {
+            const originState = originTile.querySelector('.quantum-state').textContent;
+            
+            tiles.forEach(tile => {
+                if (tile !== originTile && !tile.classList.contains('active')) {
+                    const tileState = tile.querySelector('.quantum-state').textContent;
+                    if (areEntangled(originState, tileState)) {
+                        tile.classList.add('entangled');
+                        setTimeout(() => {
+                            tile.classList.remove('entangled');
+                        }, 1000);
+                    }
+                }
+            });
+        }
+
+        function areEntangled(state1, state2) {
+            const opposites = {'↑':'↓', '→':'←', '↗':'↙', '↘':'↖'};
+            return opposites[state1] === state2;
+        }
+
+        function collapseAll() {
+            tiles.forEach(tile => {
+                if (tile.classList.contains('active')) {
+                    tile.classList.add('entangled');
+                    tile.classList.remove('active');
+                    setTimeout(() => tile.classList.remove('entangled'), 300);
+                }
+            });
+            chain = 0;
+            updateScore();
+        }
+
+        function updateScore() {
+            document.getElementById('score').textContent = score;
+            document.getElementById('chain').textContent = chain;
+        }
+
+        function newGame() {
+            const grid = document.getElementById('grid');
+            grid.innerHTML = '';
+            tiles = [];
+            score = 0;
+            chain = 0;
+            updateScore();
+            
+            // Create 5x5 grid
+            for (let i = 0; i < 25; i++) {
+                const tile = createTile();
+                grid.appendChild(tile);
+                tiles.push(tile);
+            }
+        }
+
+        // Start initial game
+        newGame();
+    </script>
+</body>
+</html>

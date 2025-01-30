@@ -1,0 +1,182 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Glassy Match</title>
+    <style>
+        body {
+            margin: 0;
+            min-height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            background: linear-gradient(45deg, #ff6b6b, #4ecdc4);
+            font-family: Arial, sans-serif;
+        }
+
+        .game-container {
+            background: rgba(255, 255, 255, 0.1);
+            backdrop-filter: blur(10px);
+            border-radius: 20px;
+            padding: 2rem;
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+        }
+
+        .card-grid {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 1rem;
+            margin-bottom: 2rem;
+        }
+
+        .card {
+            width: 80px;
+            height: 120px;
+            background: rgba(255, 255, 255, 0.15);
+            border-radius: 12px;
+            cursor: pointer;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            font-size: 2rem;
+            transition: transform 0.3s, background 0.3s;
+            position: relative;
+            transform-style: preserve-3d;
+        }
+
+        .card::before {
+            content: '';
+            position: absolute;
+            inset: 0;
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 12px;
+        }
+
+        .card.flipped {
+            background: rgba(255, 255, 255, 0.3);
+            transform: rotateY(180deg);
+        }
+
+        .card.matched {
+            background: rgba(46, 213, 115, 0.3);
+            cursor: default;
+        }
+
+        .stats {
+            display: flex;
+            justify-content: space-between;
+            color: white;
+            margin-bottom: 1rem;
+        }
+
+        button {
+            background: rgba(255, 255, 255, 0.2);
+            border: none;
+            padding: 0.8rem 1.5rem;
+            color: white;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: background 0.3s;
+        }
+
+        button:hover {
+            background: rgba(255, 255, 255, 0.3);
+        }
+    </style>
+</head>
+<body>
+    <div class="game-container">
+        <div class="stats">
+            <div>Time: <span id="time">0</span>s</div>
+            <div>Score: <span id="score">0</span></div>
+        </div>
+        <div class="card-grid" id="grid"></div>
+        <button onclick="startGame()">New Game</button>
+    </div>
+
+    <script>
+        let selectedCards = [];
+        let canFlip = true;
+        let matches = 0;
+        let time = 0;
+        let timer;
+        const emojis = ['🎮', '🎲', '🎯', '🎨', '🎭', '🎪', '🎫', '🎬'];
+        const totalPairs = 8;
+
+        function createCard(emoji) {
+            const card = document.createElement('div');
+            card.className = 'card';
+            card.innerHTML = `<span style="transform: rotateY(180deg); display: none">${emoji}</span>`;
+            card.onclick = () => handleCardClick(card);
+            return card;
+        }
+
+        function handleCardClick(card) {
+            if (!canFlip || card.classList.contains('matched') || selectedCards.includes(card)) return;
+
+            card.classList.add('flipped');
+            card.querySelector('span').style.display = 'block';
+            selectedCards.push(card);
+
+            if (selectedCards.length === 2) {
+                canFlip = false;
+                const [card1, card2] = selectedCards;
+                const match = card1.querySelector('span').textContent === card2.querySelector('span').textContent;
+
+                if (match) {
+                    card1.classList.add('matched');
+                    card2.classList.add('matched');
+                    matches++;
+                    document.getElementById('score').textContent = matches * 100;
+                    if (matches === totalPairs) endGame();
+                }
+
+                setTimeout(() => {
+                    if (!match) {
+                        card1.classList.remove('flipped');
+                        card2.classList.remove('flipped');
+                        card1.querySelector('span').style.display = 'none';
+                        card2.querySelector('span').style.display = 'none';
+                    }
+                    selectedCards = [];
+                    canFlip = true;
+                }, 1000);
+            }
+        }
+
+        function startGame() {
+            clearInterval(timer);
+            time = 0;
+            matches = 0;
+            document.getElementById('time').textContent = time;
+            document.getElementById('score').textContent = '0';
+            
+            const grid = document.getElementById('grid');
+            grid.innerHTML = '';
+            
+            const emojisToUse = [...emojis, ...emojis]
+                .sort(() => Math.random() - 0.5)
+                .slice(0, totalPairs * 2);
+            
+            emojisToUse.forEach(emoji => {
+                grid.appendChild(createCard(emoji));
+            });
+
+            timer = setInterval(() => {
+                time++;
+                document.getElementById('time').textContent = time;
+            }, 1000);
+        }
+
+        function endGame() {
+            clearInterval(timer);
+            setTimeout(() => {
+                alert(`Congratulations! You won in ${time} seconds with ${matches * 100} points!`);
+            }, 500);
+        }
+
+        startGame();
+    </script>
+</body>
+</html>

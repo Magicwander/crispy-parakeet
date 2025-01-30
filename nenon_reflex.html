@@ -1,0 +1,219 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Neon Reflex</title>
+    <style>
+        body {
+            margin: 0;
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            background: linear-gradient(135deg, #0f0f2e, #24245e);
+            font-family: 'Arial', sans-serif;
+            color: white;
+            overflow: hidden;
+        }
+
+        .game-container {
+            position: relative;
+            width: 800px;
+            height: 500px;
+            margin-top: 30px;
+            background: rgba(255, 255, 255, 0.05);
+            border-radius: 20px;
+            backdrop-filter: blur(15px);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            overflow: hidden;
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
+        }
+
+        .target {
+            position: absolute;
+            width: 60px;
+            height: 60px;
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 50%;
+            cursor: pointer;
+            transition: transform 0.2s, opacity 0.2s;
+            border: 2px solid rgba(255, 255, 255, 0.3);
+            animation: pulse 2s infinite;
+        }
+
+        .target::before {
+            content: '';
+            position: absolute;
+            inset: 0;
+            border-radius: 50%;
+            background: radial-gradient(circle at 30% 30%, 
+                rgba(255,255,255,0.4), 
+                transparent 70%);
+        }
+
+        @keyframes pulse {
+            0% { transform: scale(1); }
+            50% { transform: scale(1.05); }
+            100% { transform: scale(1); }
+        }
+
+        .score-board {
+            position: absolute;
+            top: 20px;
+            left: 20px;
+            font-size: 24px;
+            z-index: 2;
+        }
+
+        .timer-bar {
+            position: absolute;
+            top: 0;
+            left: 0;
+            height: 4px;
+            background: linear-gradient(90deg, #4ecdc4, #45b7d1);
+            transition: width 0.1s linear;
+        }
+
+        .combo {
+            position: absolute;
+            font-size: 48px;
+            opacity: 0;
+            pointer-events: none;
+            transition: all 0.5s;
+        }
+
+        button {
+            padding: 12px 25px;
+            background: rgba(255, 255, 255, 0.1);
+            border: none;
+            border-radius: 8px;
+            color: white;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            margin-top: 20px;
+            backdrop-filter: blur(5px);
+        }
+
+        button:hover {
+            background: rgba(255, 255, 255, 0.2);
+        }
+    </style>
+</head>
+<body>
+    <div class="game-container">
+        <div class="score-board">Score: <span id="score">0</span></div>
+        <div class="timer-bar" id="timer"></div>
+    </div>
+    <button onclick="startGame()">Start Game</button>
+
+    <script>
+        let score = 0;
+        let combo = 1;
+        let timeLeft = 100;
+        let gameActive = false;
+        let targets = [];
+        const colors = ['#4ecdc4', '#ff6b6b', '#45b7d1', '#96ceb4'];
+
+        function createTarget() {
+            if (!gameActive) return;
+
+            const target = document.createElement('div');
+            target.className = 'target';
+            target.style.background = colors[Math.floor(Math.random() * colors.length)];
+            
+            const size = 40 + Math.random() * 40;
+            target.style.width = `${size}px`;
+            target.style.height = `${size}px`;
+            
+            target.style.left = `${Math.random() * 700}px`;
+            target.style.top = `${Math.random() * 400}px`;
+            
+            target.addEventListener('click', () => hitTarget(target));
+            
+            document.querySelector('.game-container').appendChild(target);
+            targets.push(target);
+
+            setTimeout(() => {
+                if (target.parentElement) {
+                    target.remove();
+                    targets = targets.filter(t => t !== target);
+                    combo = 1;
+                }
+            }, 2000);
+        }
+
+        function hitTarget(target) {
+            if (!gameActive) return;
+
+            score += 10 * combo;
+            combo++;
+            timeLeft = Math.min(100, timeLeft + 5);
+            
+            document.getElementById('score').textContent = score;
+            createComboText(target);
+            
+            target.remove();
+            targets = targets.filter(t => t !== target);
+        }
+
+        function createComboText(target) {
+            if (combo > 2) {
+                const comboText = document.createElement('div');
+                comboText.className = 'combo';
+                comboText.textContent = `${combo}x COMBO!`;
+                comboText.style.color = target.style.background;
+                
+                const rect = target.getBoundingClientRect();
+                comboText.style.left = `${rect.left - 100}px`;
+                comboText.style.top = `${rect.top}px`;
+                comboText.style.opacity = '1';
+                
+                document.body.appendChild(comboText);
+                
+                setTimeout(() => {
+                    comboText.style.opacity = '0';
+                    comboText.style.transform = 'translateY(-100px)';
+                    setTimeout(() => comboText.remove(), 500);
+                }, 200);
+            }
+        }
+
+        function gameLoop() {
+            if (!gameActive) return;
+
+            timeLeft -= 0.1;
+            document.getElementById('timer').style.width = `${timeLeft}%`;
+
+            if (timeLeft <= 0) {
+                endGame();
+                return;
+            }
+
+            if (Math.random() < 0.1) {
+                createTarget();
+            }
+
+            requestAnimationFrame(gameLoop);
+        }
+
+        function endGame() {
+            gameActive = false;
+            targets.forEach(t => t.remove());
+            targets = [];
+            alert(`Game Over! Final Score: ${score}`);
+        }
+
+        function startGame() {
+            gameActive = true;
+            score = 0;
+            combo = 1;
+            timeLeft = 100;
+            document.getElementById('score').textContent = '0';
+            document.getElementById('timer').style.width = '100%';
+            targets.forEach(t => t.remove());
+            targets = [];
+            gameLoop();
+        }
+    </script>
+</body>
+</html>

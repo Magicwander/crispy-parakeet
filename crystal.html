@@ -1,0 +1,192 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Glassy Crystal Collector</title>
+    <style>
+        body {
+            margin: 0;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            background: linear-gradient(45deg, #8ec5fc, #e0c3fc);
+            font-family: Arial, sans-serif;
+        }
+
+        #gameContainer {
+            position: relative;
+            width: 400px;
+            height: 600px;
+            background: rgba(255, 255, 255, 0.1);
+            backdrop-filter: blur(10px);
+            border-radius: 20px;
+            border: 1px solid rgba(255, 255, 255, 0.3);
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
+            overflow: hidden;
+        }
+
+        #player {
+            position: absolute;
+            bottom: 20px;
+            left: 175px;
+            width: 50px;
+            height: 50px;
+            background: rgba(255, 255, 255, 0.2);
+            border-radius: 50%;
+            border: 2px solid rgba(255, 255, 255, 0.3);
+            backdrop-filter: blur(5px);
+            transition: all 0.1s;
+        }
+
+        .crystal {
+            position: absolute;
+            width: 30px;
+            height: 30px;
+            background: rgba(255, 255, 255, 0.3);
+            border-radius: 8px;
+            backdrop-filter: blur(5px);
+            border: 1px solid rgba(255, 255, 255, 0.4);
+            transform: rotate(45deg);
+            transition: all 0.3s;
+        }
+
+        #score {
+            position: absolute;
+            top: 20px;
+            left: 20px;
+            color: white;
+            font-size: 24px;
+            text-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+        }
+
+        #gameOver {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background: rgba(255, 255, 255, 0.2);
+            padding: 20px;
+            border-radius: 15px;
+            text-align: center;
+            backdrop-filter: blur(10px);
+            display: none;
+        }
+
+        button {
+            background: rgba(255, 255, 255, 0.3);
+            border: none;
+            padding: 10px 20px;
+            border-radius: 8px;
+            color: white;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+
+        button:hover {
+            background: rgba(255, 255, 255, 0.4);
+        }
+    </style>
+</head>
+<body>
+    <div id="gameContainer">
+        <div id="score">Score: 0</div>
+        <div id="player"></div>
+        <div id="gameOver">
+            <h2>Game Over!</h2>
+            <p>Final Score: <span id="finalScore">0</span></p>
+            <button onclick="restartGame()">Play Again</button>
+        </div>
+    </div>
+
+    <script>
+        const player = document.getElementById('player');
+        const gameContainer = document.getElementById('gameContainer');
+        const scoreElement = document.getElementById('score');
+        const gameOverScreen = document.getElementById('gameOver');
+        const finalScoreElement = document.getElementById('finalScore');
+
+        let playerX = 175;
+        let score = 0;
+        let gameActive = true;
+        let crystals = [];
+
+        function createCrystal() {
+            const crystal = document.createElement('div');
+            crystal.className = 'crystal';
+            crystal.style.left = Math.random() * 370 + 'px';
+            crystal.style.top = '-30px';
+            gameContainer.appendChild(crystal);
+            crystals.push({
+                element: crystal,
+                x: parseInt(crystal.style.left),
+                y: -30,
+                speed: Math.random() * 3 + 2
+            });
+        }
+
+        function moveCrystals() {
+            crystals.forEach((crystal, index) => {
+                crystal.y += crystal.speed;
+                crystal.element.style.top = crystal.y + 'px';
+
+                // Check collision
+                if (Math.abs(crystal.x - playerX) < 40 && crystal.y > 550) {
+                    if (gameActive) {
+                        score += 10;
+                        scoreElement.textContent = `Score: ${score}`;
+                    }
+                    crystal.element.remove();
+                    crystals.splice(index, 1);
+                }
+
+                // Remove off-screen crystals
+                if (crystal.y > 600) {
+                    if (gameActive) {
+                        gameOver();
+                    }
+                    crystal.element.remove();
+                    crystals.splice(index, 1);
+                }
+            });
+        }
+
+        function gameOver() {
+            gameActive = false;
+            gameOverScreen.style.display = 'block';
+            finalScoreElement.textContent = score;
+        }
+
+        function restartGame() {
+            score = 0;
+            playerX = 175;
+            gameActive = true;
+            scoreElement.textContent = `Score: ${score}`;
+            gameOverScreen.style.display = 'none';
+            crystals.forEach(crystal => crystal.element.remove());
+            crystals = [];
+            player.style.left = playerX + 'px';
+        }
+
+        function handleKeyPress(e) {
+            if (!gameActive) return;
+
+            if (e.key === 'ArrowLeft' && playerX > 0) {
+                playerX -= 20;
+            } else if (e.key === 'ArrowRight' && playerX < 350) {
+                playerX += 20;
+            }
+            player.style.left = playerX + 'px';
+        }
+
+        // Game loop
+        setInterval(() => {
+            if (gameActive && Math.random() < 0.05) {
+                createCrystal();
+            }
+            moveCrystals();
+        }, 20);
+
+        document.addEventListener('keydown', handleKeyPress);
+    </script>
+</body>
+</html>

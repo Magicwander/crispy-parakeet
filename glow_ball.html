@@ -1,0 +1,190 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Glow Balance</title>
+    <style>
+        body {
+            margin: 0;
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            background: linear-gradient(135deg, #1a1a2e, #2d2d4e);
+            font-family: 'Arial', sans-serif;
+            color: white;
+            overflow: hidden;
+        }
+
+        .game-container {
+            position: relative;
+            width: 600px;
+            height: 600px;
+            margin-top: 30px;
+            background: rgba(255, 255, 255, 0.05);
+            border-radius: 20px;
+            backdrop-filter: blur(15px);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            overflow: hidden;
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
+        }
+
+        #balanceBoard {
+            width: 100%;
+            height: 100%;
+            position: relative;
+            transition: transform 0.1s;
+        }
+
+        .ball {
+            position: absolute;
+            width: 30px;
+            height: 30px;
+            background: radial-gradient(circle at 30% 30%, #64ffda, #45b7d1);
+            border-radius: 50%;
+            transition: all 0.1s;
+            box-shadow: 0 0 20px rgba(100, 255, 218, 0.3);
+        }
+
+        .target {
+            position: absolute;
+            width: 50px;
+            height: 50px;
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 50%;
+            border: 2px solid rgba(100, 255, 218, 0.3);
+            animation: pulse 2s infinite;
+        }
+
+        @keyframes pulse {
+            0% { transform: scale(1); opacity: 0.8; }
+            50% { transform: scale(1.1); opacity: 1; }
+            100% { transform: scale(1); opacity: 0.8; }
+        }
+
+        .score-board {
+            position: absolute;
+            top: 20px;
+            left: 20px;
+            font-size: 24px;
+            z-index: 2;
+        }
+
+        button {
+            padding: 12px 25px;
+            background: rgba(255, 255, 255, 0.1);
+            border: none;
+            border-radius: 8px;
+            color: white;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            margin-top: 20px;
+            backdrop-filter: blur(5px);
+        }
+
+        button:hover {
+            background: rgba(255, 255, 255, 0.2);
+        }
+
+        .game-over {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            font-size: 48px;
+            text-align: center;
+            text-shadow: 0 0 10px rgba(0,0,0,0.5);
+            opacity: 0;
+            transition: opacity 0.3s;
+        }
+    </style>
+</head>
+<body>
+    <div class="game-container">
+        <div class="score-board">Time: <span id="time">0</span>s</div>
+        <div id="balanceBoard">
+            <div class="target" style="left: 275px; top: 275px;"></div>
+            <div class="ball" id="ball"></div>
+        </div>
+        <div class="game-over" id="gameOver">Game Over!</div>
+    </div>
+    <button onclick="startGame()">Start Game</button>
+
+    <script>
+        let gameActive = false;
+        let seconds = 0;
+        let timer;
+        let ballX = 300;
+        let ballY = 300;
+        const sensitivity = 0.3;
+        const friction = 0.98;
+        let velocityX = 0;
+        let velocityY = 0;
+
+        function updateBallPosition(e) {
+            if (!gameActive) return;
+
+            const rect = document.getElementById('balanceBoard').getBoundingClientRect();
+            const centerX = rect.width / 2;
+            const centerY = rect.height / 2;
+            
+            const tiltX = (e.clientX - rect.left - centerX) / centerX;
+            const tiltY = (e.clientY - rect.top - centerY) / centerY;
+
+            velocityX += tiltX * sensitivity;
+            velocityY += tiltY * sensitivity;
+            
+            velocityX *= friction;
+            velocityY *= friction;
+            
+            ballX = Math.max(15, Math.min(585, ballX + velocityX));
+            ballY = Math.max(15, Math.min(585, ballY + velocityY));
+            
+            document.getElementById('ball').style.left = `${ballX}px`;
+            document.getElementById('ball').style.top = `${ballY}px`;
+
+            // Check center position
+            if (Math.abs(ballX - 300) < 25 && Math.abs(ballY - 300) < 25) {
+                document.getElementById('ball').style.boxShadow = '0 0 30px rgba(100, 255, 218, 0.5)';
+            } else {
+                document.getElementById('ball').style.boxShadow = '0 0 20px rgba(100, 255, 218, 0.3)';
+            }
+
+            // Check game over
+            if (Math.abs(ballX - 300) > 250 || Math.abs(ballY - 300) > 250) {
+                endGame();
+            }
+        }
+
+        function startGame() {
+            gameActive = true;
+            seconds = 0;
+            ballX = 300;
+            ballY = 300;
+            velocityX = 0;
+            velocityY = 0;
+            document.getElementById('time').textContent = '0';
+            document.getElementById('gameOver').style.opacity = '0';
+            document.getElementById('ball').style.left = '300px';
+            document.getElementById('ball').style.top = '300px';
+            
+            clearInterval(timer);
+            timer = setInterval(() => {
+                if (gameActive) {
+                    seconds++;
+                    document.getElementById('time').textContent = seconds;
+                }
+            }, 1000);
+
+            document.addEventListener('mousemove', updateBallPosition);
+        }
+
+        function endGame() {
+            gameActive = false;
+            clearInterval(timer);
+            document.getElementById('gameOver').style.opacity = '1';
+            document.removeEventListener('mousemove', updateBallPosition);
+        }
+    </script>
+</body>
+</html>

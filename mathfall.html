@@ -1,0 +1,200 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Math Fall</title>
+    <style>
+        body {
+            margin: 0;
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            background: linear-gradient(135deg, #1a1a1a, #2d2d2d);
+            font-family: 'Arial', sans-serif;
+            color: white;
+            overflow: hidden;
+        }
+
+        .game-container {
+            position: relative;
+            width: 800px;
+            height: 600px;
+            margin-top: 30px;
+            background: rgba(255, 255, 255, 0.05);
+            border-radius: 20px;
+            backdrop-filter: blur(12px);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            overflow: hidden;
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
+        }
+
+        .score-board {
+            position: absolute;
+            top: 20px;
+            left: 20px;
+            font-size: 24px;
+            z-index: 2;
+        }
+
+        .equation {
+            position: absolute;
+            padding: 15px 25px;
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 12px;
+            font-size: 32px;
+            cursor: pointer;
+            transition: transform 0.1s;
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            backdrop-filter: blur(6px);
+        }
+
+        .equation:hover {
+            transform: scale(1.05);
+            background: rgba(255, 255, 255, 0.15);
+        }
+
+        .input-container {
+            position: absolute;
+            bottom: 30px;
+            left: 50%;
+            transform: translateX(-50%);
+            display: flex;
+            gap: 10px;
+        }
+
+        input {
+            padding: 12px 20px;
+            font-size: 18px;
+            border: none;
+            border-radius: 8px;
+            background: rgba(255, 255, 255, 0.1);
+            color: white;
+            width: 150px;
+        }
+
+        button {
+            padding: 12px 25px;
+            background: rgba(255, 255, 255, 0.1);
+            border: none;
+            border-radius: 8px;
+            color: white;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+
+        button:hover {
+            background: rgba(255, 255, 255, 0.2);
+        }
+
+        .game-over {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            text-align: center;
+            font-size: 48px;
+            text-shadow: 0 0 10px rgba(0,0,0,0.5);
+        }
+    </style>
+</head>
+<body>
+    <div class="game-container">
+        <div class="score-board">Score: <span id="score">0</span></div>
+        <div class="input-container">
+            <input type="number" id="answer" placeholder="Enter answer">
+            <button onclick="submitAnswer()">Submit</button>
+        </div>
+    </div>
+
+    <script>
+        let score = 0;
+        let currentEquation = null;
+        let speed = 3;
+        let gameActive = true;
+        let equations = [];
+        const operations = ['+', '-', '*'];
+        
+        function createEquation() {
+            const equation = document.createElement('div');
+            equation.className = 'equation';
+            
+            const num1 = Math.floor(Math.random() * 10) + 1;
+            const num2 = Math.floor(Math.random() * 10) + 1;
+            const operation = operations[Math.floor(Math.random() * operations.length)];
+            
+            equation.textContent = `${num1} ${operation} ${num2} = ?`;
+            equation.dataset.answer = eval(num1 + operation + num2);
+            
+            equation.style.left = `${Math.random() * 700}px`;
+            equation.style.top = '-100px';
+            
+            equation.addEventListener('click', () => selectEquation(equation));
+            
+            document.querySelector('.game-container').appendChild(equation);
+            equations.push({
+                element: equation,
+                y: -100,
+                speed: speed + Math.random() * 2
+            });
+        }
+
+        function selectEquation(equation) {
+            if (currentEquation) {
+                currentEquation.style.background = rgba(255, 255, 255, 0.1);
+            }
+            currentEquation = equation;
+            equation.style.background = rgba(255, 255, 255, 0.2);
+            document.getElementById('answer').focus();
+        }
+
+        function submitAnswer() {
+            if (!currentEquation || !gameActive) return;
+            
+            const userAnswer = parseInt(document.getElementById('answer').value);
+            const correctAnswer = parseInt(currentEquation.dataset.answer);
+            
+            if (userAnswer === correctAnswer) {
+                score += 10;
+                document.getElementById('score').textContent = score;
+                equations = equations.filter(eq => eq.element !== currentEquation);
+                currentEquation.remove();
+                speed += 0.1;
+            } else {
+                score = Math.max(0, score - 5);
+                document.getElementById('score').textContent = score;
+            }
+            
+            document.getElementById('answer').value = '';
+            currentEquation = null;
+        }
+
+        function gameLoop() {
+            if (!gameActive) return;
+            
+            equations.forEach(eq => {
+                eq.y += eq.speed;
+                eq.element.style.top = `${eq.y}px`;
+                
+                if (eq.y > 600) {
+                    endGame();
+                }
+            });
+            
+            requestAnimationFrame(gameLoop);
+        }
+
+        function endGame() {
+            gameActive = false;
+            const gameOver = document.createElement('div');
+            gameOver.className = 'game-over';
+            gameOver.innerHTML = `Game Over!<br>Final Score: ${score}`;
+            document.querySelector('.game-container').appendChild(gameOver);
+        }
+
+        // Start game
+        setInterval(createEquation, 2000);
+        gameLoop();
+    </script>
+</body>
+</html>

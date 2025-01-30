@@ -1,0 +1,564 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Neon Pac-Man</title>
+    <link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --primary: #2c3e50;
+            --accent: #3498db;
+            --pacman: #f1c40f;
+            --ghost: #e74c3c;
+            --dot: #ecf0f1;
+            --power: #9b59b6;
+            --text: #ecf0f1;
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            min-height: 100vh;
+            background: #1a1a2e;
+            font-family: 'Press Start 2P', monospace;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            color: var(--text);
+        }
+
+        .game-container {
+            display: flex;
+            gap: 20px;
+        }
+
+        .maze {
+            width: 600px;
+            height: 600px;
+            background: rgba(255, 255, 255, 0.05);
+            border: 2px solid var(--accent);
+            border-radius: 10px;
+            box-shadow: 0 0 20px rgba(52, 152, 219, 0.3);
+            position: relative;
+            overflow: hidden;
+        }
+
+        .sidebar {
+            width: 200px;
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+        }
+
+        .stats {
+            padding: 20px;
+            background: rgba(255, 255, 255, 0.05);
+            border: 2px solid var(--accent);
+            border-radius: 10px;
+        }
+
+        .stats div {
+            margin: 10px 0;
+            text-shadow: 0 0 5px var(--accent);
+        }
+
+        .cell {
+            position: absolute;
+            width: 30px;
+            height: 30px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+
+        .wall {
+            background: var(--accent);
+            box-shadow: 0 0 10px var(--accent);
+            border-radius: 4px;
+        }
+
+        .dot {
+            width: 6px;
+            height: 6px;
+            background: var(--dot);
+            border-radius: 50%;
+            box-shadow: 0 0 5px var(--dot);
+        }
+
+        .power-pellet {
+            width: 15px;
+            height: 15px;
+            background: var(--power);
+            border-radius: 50%;
+            box-shadow: 0 0 10px var(--power);
+            animation: pulse 1s infinite;
+        }
+
+        .pacman {
+            width: 30px;
+            height: 30px;
+            background: var(--pacman);
+            border-radius: 50%;
+            box-shadow: 0 0 15px var(--pacman);
+            clip-path: polygon(100% 0,
+                             100% 100%,
+                             50% 50%,
+                             0 100%,
+                             0 0);
+            animation: chomp 0.3s linear infinite;
+        }
+
+        .ghost {
+            width: 30px;
+            height: 30px;
+            background: var(--ghost);
+            border-radius: 15px 15px 0 0;
+            box-shadow: 0 0 15px var(--ghost);
+            position: relative;
+        }
+
+        .ghost.frightened {
+            background: #0000ff;
+            box-shadow: 0 0 15px #0000ff;
+        }
+
+        .ghost::after {
+            content: '';
+            position: absolute;
+            bottom: 0;
+            width: 100%;
+            height: 10px;
+            background: inherit;
+            clip-path: polygon(
+                0% 0%, 25% 100%, 50% 0%, 75% 100%, 100% 0%
+            );
+        }
+
+        @keyframes chomp {
+            0% { clip-path: polygon(100% 0, 100% 100%, 50% 50%, 0 100%, 0 0); }
+            50% { clip-path: polygon(100% 35, 100% 65, 50% 50%, 0 65, 0 35); }
+            100% { clip-path: polygon(100% 0, 100% 100%, 50% 50%, 0 100%, 0 0); }
+        }
+
+        @keyframes pulse {
+            0% { transform: scale(1); }
+            50% { transform: scale(1.2); }
+            100% { transform: scale(1); }
+        }
+
+        .game-over, .start-screen {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background: rgba(0, 0, 0, 0.9);
+            padding: 30px;
+            border-radius: 10px;
+            border: 2px solid var(--accent);
+            text-align: center;
+            z-index: 10;
+        }
+
+        .game-over {
+            display: none;
+        }
+
+        .btn {
+            background: var(--accent);
+            color: var(--text);
+            border: none;
+            padding: 15px 30px;
+            font-family: inherit;
+            font-size: 16px;
+            cursor: pointer;
+            margin-top: 20px;
+            border-radius: 5px;
+            transition: all 0.3s;
+        }
+
+        .btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 0 15px var(--accent);
+        }
+
+        .particle {
+            position: absolute;
+            pointer-events: none;
+            border-radius: 50%;
+            animation: particle 0.8s ease-out forwards;
+        }
+
+        @keyframes particle {
+            0% {
+                transform: scale(1);
+                opacity: 1;
+            }
+            100% {
+                transform: scale(0) translate(var(--tx), var(--ty));
+                opacity: 0;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="game-container">
+        <div class="maze" id="maze">
+            <div class="start-screen" id="startScreen">
+                <h1>NEON PAC-MAN</h1>
+                <button class="btn" onclick="game.start()">Start Game</button>
+                <div style="margin-top: 20px; font-size: 12px; opacity: 0.7;">
+                    Arrow keys to move<br>
+                    Eat all dots to win<br>
+                    Avoid ghosts
+                </div>
+            </div>
+            <div class="game-over" id="gameOver">
+                <h1>GAME OVER</h1>
+                <div id="finalScore"></div>
+                <button class="btn" onclick="game.restart()">Play Again</button>
+            </div>
+        </div>
+        <div class="sidebar">
+            <div class="stats">
+                <div>Score: <span id="score">0</span></div>
+                <div>Lives: <span id="lives">3</span></div>
+                <div>Level: <span id="level">1</span></div>
+            </div>
+        </div>
+    </div>
+    <script>
+        class PacManGame {
+            constructor() {
+                this.maze = document.getElementById('maze');
+                this.startScreen = document.getElementById('startScreen');
+                this.gameOverScreen = document.getElementById('gameOver');
+
+                this.gridSize = 20; // 20x20 grid
+                this.cellSize = 30; // 30px cells
+                this.grid = [];
+                this.dots = [];
+                this.powerPellets = [];
+                this.ghosts = [];
+                this.pacman = { x: 1, y: 1, direction: 'right' };
+
+                this.score = 0;
+                this.lives = 3;
+                this.level = 1;
+                this.gameLoop = null;
+                this.isPoweredUp = false;
+                this.powerTimer = null;
+
+                // Basic maze layout (1 = wall, 0 = path)
+                this.mazeTemplate = [
+                    [1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1],
+                    [1,0,0,0,0,0,1,0,0,0,0,0,0,1,0,0,0,0,0,1],
+                    [1,0,1,1,1,0,1,0,1,1,1,1,0,1,0,1,1,1,0,1],
+                    [1,0,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1,0,1],
+                    [1,0,1,0,1,1,1,1,1,0,0,1,1,1,1,1,0,1,0,1],
+                    [1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1],
+                    [1,0,1,0,1,0,1,1,1,1,1,1,1,1,0,1,0,1,0,1],
+                    [1,0,1,0,1,0,0,0,0,0,0,0,0,0,0,1,0,1,0,1],
+                    [1,0,1,0,1,1,1,1,1,0,0,1,1,1,1,1,0,1,0,1],
+                    [0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0],
+                    [0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0],
+                    [1,0,1,0,1,1,1,1,1,0,0,1,1,1,1,1,0,1,0,1],
+                    [1,0,1,0,1,0,0,0,0,0,0,0,0,0,0,1,0,1,0,1],
+                    [1,0,1,0,1,0,1,1,1,1,1,1,1,1,0,1,0,1,0,1],
+                    [1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1],
+                    [1,0,1,0,1,1,1,1,1,0,0,1,1,1,1,1,0,1,0,1],
+                    [1,0,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1,0,1],
+                    [1,0,1,1,1,0,1,0,1,1,1,1,0,1,0,1,1,1,0,1],
+                    [1,0,0,0,0,0,1,0,0,0,0,0,0,1,0,0,0,0,0,1],
+                    [1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1]
+                ];
+
+                this.setupGame();
+                this.setupControls();
+            }
+
+            setupGame() {
+                console.log("Setting up the game...");
+                this.createMaze();
+                this.spawnGhosts();
+                this.updateStats();
+            }
+
+            createMaze() {
+                console.log("Creating the maze...");
+                this.maze.innerHTML = '';
+                this.dots = [];
+                this.powerPellets = [];
+
+                for (let y = 0; y < this.gridSize; y++) {
+                    for (let x = 0; x < this.gridSize; x++) {
+                        const cell = document.createElement('div');
+                        cell.className = 'cell';
+                        cell.style.left = `${x * this.cellSize}px`;
+                        cell.style.top = `${y * this.cellSize}px`;
+
+                        if (this.mazeTemplate[y][x] === 1) {
+                            cell.classList.add('wall');
+                        } else {
+                            // Add dots or power pellets
+                            if ((x === 1 && y === 1) || (x === 18 && y === 1) ||
+                                (x === 1 && y === 18) || (x === 18 && y === 18)) {
+                                const powerPellet = document.createElement('div');
+                                powerPellet.className = 'power-pellet';
+                                cell.appendChild(powerPellet);
+                                this.powerPellets.push({x, y, element: powerPellet});
+                            } else {
+                                const dot = document.createElement('div');
+                                dot.className = 'dot';
+                                cell.appendChild(dot);
+                                this.dots.push({x, y, element: dot});
+                            }
+                        }
+
+                        this.maze.appendChild(cell);
+                    }
+                }
+
+                // Add Pac-Man
+                const pacman = document.createElement('div');
+                pacman.className = 'pacman';
+                pacman.style.left = `${this.pacman.x * this.cellSize}px`;
+                pacman.style.top = `${this.pacman.y * this.cellSize}px`;
+                this.maze.appendChild(pacman);
+                this.pacman.element = pacman;
+            }
+
+            spawnGhosts() {
+                console.log("Spawning ghosts...");
+                const ghostPositions = [
+                    {x: 9, y: 8}, {x: 10, y: 8},
+                    {x: 9, y: 9}, {x: 10, y: 9}
+                ];
+
+                const ghostColors = ['#e74c3c', '#e67e22', '#f1c40f', '#2ecc71'];
+                this.ghosts = ghostPositions.map((pos, index) => {
+                    const ghost = document.createElement('div');
+                    ghost.className = 'ghost';
+                    ghost.style.background = ghostColors[index];
+                    ghost.style.left = `${pos.x * this.cellSize}px`;
+                    ghost.style.top = `${pos.y * this.cellSize}px`;
+                    this.maze.appendChild(ghost);
+
+                    return {
+                        x: pos.x,
+                        y: pos.y,
+                        direction: 'right',
+                        element: ghost,
+                        baseColor: ghostColors[index]
+                    };
+                });
+            }
+
+            setupControls() {
+                console.log("Setting up controls...");
+                document.addEventListener('keydown', (e) => {
+                    if (!this.gameLoop) return;
+                    switch(e.key) {
+                        case 'ArrowLeft':
+                            this.pacman.direction = 'left';
+                            this.pacman.element.style.transform = 'scaleX(-1)';
+                            break;
+                        case 'ArrowRight':
+                            this.pacman.direction = 'right';
+                            this.pacman.element.style.transform = 'scaleX(1)';
+                            break;
+                        case 'ArrowUp':
+                            this.pacman.direction = 'up';
+                            this.pacman.element.style.transform = 'rotate(-90deg)';
+                            break;
+                        case 'ArrowDown':
+                            this.pacman.direction = 'down';
+                            this.pacman.element.style.transform = 'rotate(90deg)';
+                            break;
+                    }
+                });
+            }
+
+            moveGhosts() {
+                this.ghosts.forEach(ghost => {
+                    const directions = ['up', 'down', 'left', 'right'];
+                    const validDirections = directions.filter(dir => {
+                        const newPos = this.getNewPosition(ghost, dir);
+                        return !this.isWall(newPos.x, newPos.y);
+                    });
+
+                    if (validDirections.length > 0) {
+                        const randomDir = validDirections[Math.floor(Math.random() * validDirections.length)];
+                        const newPos = this.getNewPosition(ghost, randomDir);
+                        ghost.x = newPos.x;
+                        ghost.y = newPos.y;
+                        ghost.element.style.left = `${ghost.x * this.cellSize}px`;
+                        ghost.element.style.top = `${ghost.y * this.cellSize}px`;
+                    }
+                });
+            }
+
+            getNewPosition(entity, direction) {
+                const pos = { x: entity.x, y: entity.y };
+                switch(direction) {
+                    case 'left': pos.x--; break;
+                    case 'right': pos.x++; break;
+                    case 'up': pos.y--; break;
+                    case 'down': pos.y++; break;
+                }
+                return pos;
+            }
+
+            isWall(x, y) {
+                return this.mazeTemplate[y][x] === 1;
+            }
+
+            movePacman() {
+                const newPos = this.getNewPosition(this.pacman, this.pacman.direction);
+
+                if (!this.isWall(newPos.x, newPos.y)) {
+                    this.pacman.x = newPos.x;
+                    this.pacman.y = newPos.y;
+                    this.pacman.element.style.left = `${this.pacman.x * this.cellSize}px`;
+                    this.pacman.element.style.top = `${this.pacman.y * this.cellSize}px`;
+
+                    this.checkCollisions();
+                }
+            }
+
+            checkCollisions() {
+                // Check dot collisions
+                this.dots = this.dots.filter(dot => {
+                    if (dot.x === this.pacman.x && dot.y === this.pacman.y) {
+                        dot.element.remove();
+                        this.score += 10;
+                        this.updateStats();
+                        return false;
+                    }
+                    return true;
+                });
+
+                // Check power pellet collisions
+                this.powerPellets = this.powerPellets.filter(pellet => {
+                    if (pellet.x === this.pacman.x && pellet.y === this.pacman.y) {
+                        pellet.element.remove();
+                        this.activatePowerUp();
+                        this.score += 50;
+                        this.updateStats();
+                        return false;
+                    }
+                    return true;
+                });
+
+                // Check ghost collisions
+                this.ghosts.forEach(ghost => {
+                    if (ghost.x === this.pacman.x && ghost.y === this.pacman.y) {
+                        if (this.isPoweredUp) {
+                            this.score += 200;
+                            this.updateStats();
+                            this.resetGhost(ghost);
+                        } else {
+                            this.loseLife();
+                        }
+                    }
+                });
+
+                // Check win condition
+                if (this.dots.length === 0 && this.powerPellets.length === 0) {
+                    this.nextLevel();
+                }
+            }
+
+            activatePowerUp() {
+                this.isPoweredUp = true;
+                clearTimeout(this.powerTimer);
+
+                this.ghosts.forEach(ghost => {
+                    ghost.element.classList.add('frightened');
+                });
+
+                this.powerTimer = setTimeout(() => {
+                    this.isPoweredUp = false;
+                    this.ghosts.forEach(ghost => {
+                        ghost.element.classList.remove('frightened');
+                    });
+                }, 5000);
+            }
+
+            resetGhost(ghost) {
+                ghost.x = 9;
+                ghost.y = 9;
+                ghost.element.style.left = `${ghost.x * this.cellSize}px`;
+                ghost.element.style.top = `${ghost.y * this.cellSize}px`;
+            }
+
+            loseLife() {
+                this.lives--;
+                this.updateStats();
+
+                if (this.lives <= 0) {
+                    this.gameOver();
+                } else {
+                    this.resetPositions();
+                }
+            }
+
+            resetPositions() {
+                this.pacman.x = 1;
+                this.pacman.y = 1;
+                this.pacman.element.style.left = `${this.pacman.x * this.cellSize}px`;
+                this.pacman.element.style.top = `${this.pacman.y * this.cellSize}px`;
+
+                this.ghosts.forEach(ghost => this.resetGhost(ghost));
+            }
+
+            nextLevel() {
+                this.level++;
+                this.updateStats();
+                this.resetPositions();
+                this.setupGame();
+            }
+
+            updateStats() {
+                document.getElementById('score').textContent = this.score;
+                document.getElementById('lives').textContent = this.lives;
+                document.getElementById('level').textContent = this.level;
+            }
+
+            start() {
+                console.log("Starting the game...");
+                this.startScreen.style.display = 'none';
+                this.gameLoop = setInterval(() => {
+                    this.movePacman();
+                    this.moveGhosts();
+                }, 200);
+            }
+
+            gameOver() {
+                clearInterval(this.gameLoop);
+                this.gameLoop = null;
+                document.getElementById('finalScore').textContent = `Score: ${this.score}`;
+                this.gameOverScreen.style.display = 'block';
+            }
+
+            restart() {
+                this.maze.innerHTML = '';
+                this.score = 0;
+                this.lives = 3;
+                this.level = 1;
+                this.pacman = { x: 1, y: 1, direction: 'right' };
+                this.isPoweredUp = false;
+                this.gameOverScreen.style.display = 'none';
+
+                this.setupGame();
+                this.start();
+            }
+        }
+
+        const game = new PacManGame();
+    </script>
+</body>
+</html>

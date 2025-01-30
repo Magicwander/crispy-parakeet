@@ -1,0 +1,276 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Grid Centipede</title>
+    <style>
+        body {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            background: #111;
+            color: #fff;
+            font-family: Arial, sans-serif;
+            margin: 0;
+            padding: 20px;
+        }
+
+        #game-container {
+            display: grid;
+            gap: 1px;
+            background: #222;
+            padding: 2px;
+            border: 2px solid #444;
+        }
+
+        .cell {
+            width: 25px;
+            height: 25px;
+            background: #000;
+        }
+
+        .player { background: #0f0; }
+        .bullet { background: #ff0; }
+        .centipede { background: #f00; }
+        .mushroom { background: #83f; }
+
+        #score {
+            font-size: 24px;
+            margin: 20px;
+        }
+
+        #controls {
+            margin: 20px;
+            text-align: center;
+        }
+
+        button {
+            padding: 10px 20px;
+            font-size: 16px;
+            background: #444;
+            color: #fff;
+            border: none;
+            cursor: pointer;
+            margin: 5px;
+        }
+
+        button:hover {
+            background: #666;
+        }
+    </style>
+</head>
+<body>
+    <div id="score">Score: 0</div>
+    <div id="game-container"></div>
+    <div id="controls">
+        <button onclick="startGame()">Start Game</button>
+    </div>
+
+    <script>
+        const GRID_WIDTH = 20;
+        const GRID_HEIGHT = 20;
+        const INITIAL_CENTIPEDE_LENGTH = 8;
+
+        let grid = [];
+        let player = { x: GRID_WIDTH / 2, y: GRID_HEIGHT - 1 };
+        let bullets = [];
+        let centipede = [];
+        let mushrooms = [];
+        let score = 0;
+        let gameLoop;
+        let isGameRunning = false;
+
+        // Initialize the game grid
+        function createGrid() {
+            const container = document.getElementById('game-container');
+            container.style.gridTemplateColumns = `repeat(${GRID_WIDTH}, 25px)`;
+
+            for (let y = 0; y < GRID_HEIGHT; y++) {
+                grid[y] = [];
+                for (let x = 0; x < GRID_WIDTH; x++) {
+                    const cell = document.createElement('div');
+                    cell.className = 'cell';
+                    container.appendChild(cell);
+                    grid[y][x] = cell;
+                }
+            }
+        }
+
+        // Initialize centipede
+        function createCentipede() {
+            centipede = [];
+            for (let i = 0; i < INITIAL_CENTIPEDE_LENGTH; i++) {
+                centipede.push({
+                    x: i,
+                    y: 0,
+                    direction: 1,
+                    moving: 'right'
+                });
+            }
+        }
+
+        // Create random mushrooms
+        function createMushrooms() {
+            mushrooms = [];
+            for (let i = 0; i < 20; i++) {
+                const x = Math.floor(Math.random() * GRID_WIDTH);
+                const y = Math.floor(Math.random() * (GRID_HEIGHT - 2)) + 1;
+                mushrooms.push({ x, y });
+            }
+        }
+
+        // Update game display
+        function updateDisplay() {
+            // Clear grid
+            for (let y = 0; y < GRID_HEIGHT; y++) {
+                for (let x = 0; x < GRID_WIDTH; x++) {
+                    grid[y][x].className = 'cell';
+                }
+            }
+
+            // Draw mushrooms
+            mushrooms.forEach(m => {
+                grid[m.y][m.x].classList.add('mushroom');
+            });
+
+            // Draw bullets
+            bullets.forEach(b => {
+                if (b.y >= 0) {
+                    grid[b.y][b.x].classList.add('bullet');
+                }
+            });
+
+            // Draw centipede
+            centipede.forEach(c => {
+                grid[c.y][c.x].classList.add('centipede');
+            });
+
+            // Draw player
+            grid[player.y][player.x].classList.add('player');
+        }
+
+        // Move the centipede
+        function moveCentipede() {
+            centipede.forEach(segment => {
+                if (segment.moving === 'right') {
+                    segment.x += segment.direction;
+                    if (segment.x >= GRID_WIDTH - 1 || isMushroom(segment.x + segment.direction, segment.y)) {
+                        segment.moving = 'down';
+                    }
+                } else if (segment.moving === 'left') {
+                    segment.x -= segment.direction;
+                    if (segment.x <= 0 || isMushroom(segment.x - segment.direction, segment.y)) {
+                        segment.moving = 'down';
+                    }
+                } else if (segment.moving === 'down') {
+                    segment.y += 1;
+                    if (segment.y >= GRID_HEIGHT) {
+                        gameOver();
+                        return;
+                    }
+                    segment.direction *= -1;
+                    segment.moving = segment.direction > 0 ? 'right' : 'left';
+                }
+            });
+        }
+
+        // Check if position has mushroom
+        function isMushroom(x, y) {
+            return mushrooms.some(m => m.x === x && m.y === y);
+        }
+
+        // Move bullets
+        function moveBullets() {
+            bullets = bullets.map(bullet => ({
+                ...bullet,
+                y: bullet.y - 1
+            })).filter(bullet => bullet.y >= 0);
+        }
+
+        // Check collisions
+        function checkCollisions() {
+            bullets.forEach((bullet, bulletIndex) => {
+                // Check centipede hits
+                centipede.forEach((segment, segmentIndex) => {
+                    if (bullet.x === segment.x && bullet.y === segment.y) {
+                        // Create mushroom where segment was hit
+                        mushrooms.push({ x: segment.x, y: segment.y });
+                        centipede.splice(segmentIndex, 1);
+                        bullets.splice(bulletIndex, 1);
+                        score += 100;
+                        updateScore();
+                    }
+                });
+
+                // Check mushroom hits
+                mushrooms.forEach((mushroom, mushroomIndex) => {
+                    if (bullet.x === mushroom.x && bullet.y === mushroom.y) {
+                        mushrooms.splice(mushroomIndex, 1);
+                        bullets.splice(bulletIndex, 1);
+                        score += 10;
+                        updateScore();
+                    }
+                });
+            });
+
+            // Check player collision with centipede
+            if (centipede.some(segment => segment.x === player.x && segment.y === player.y)) {
+                gameOver();
+            }
+        }
+
+        function updateScore() {
+            document.getElementById('score').textContent = `Score: ${score}`;
+        }
+
+        function gameOver() {
+            isGameRunning = false;
+            clearInterval(gameLoop);
+            alert(`Game Over! Score: ${score}`);
+        }
+
+        function startGame() {
+            if (!isGameRunning) {
+                score = 0;
+                updateScore();
+                createCentipede();
+                createMushrooms();
+                isGameRunning = true;
+                gameLoop = setInterval(gameUpdate, 200);
+            }
+        }
+
+        function gameUpdate() {
+            moveCentipede();
+            moveBullets();
+            checkCollisions();
+            updateDisplay();
+
+            if (centipede.length === 0) {
+                createCentipede();
+            }
+        }
+
+        // Handle keyboard input
+        document.addEventListener('keydown', (e) => {
+            if (!isGameRunning) return;
+
+            switch (e.key) {
+                case 'ArrowLeft':
+                    if (player.x > 0) player.x--;
+                    break;
+                case 'ArrowRight':
+                    if (player.x < GRID_WIDTH - 1) player.x++;
+                    break;
+                case ' ': // Spacebar
+                    bullets.push({ x: player.x, y: player.y - 1 });
+                    break;
+            }
+            updateDisplay();
+        });
+
+        // Initialize game
+        createGrid();
+        updateDisplay();
+    </script>
+</body>
+</html>

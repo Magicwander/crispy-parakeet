@@ -1,0 +1,241 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Chronoglass</title>
+    <style>
+        body {
+            margin: 0;
+            overflow: hidden;
+            background: #0a0a1a;
+            height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            font-family: 'Courier New', monospace;
+        }
+
+        #gameWorld {
+            position: relative;
+            width: 1200px;
+            height: 800px;
+            background: linear-gradient(45deg, #001144, #000022);
+            border-radius: 15px;
+            overflow: hidden;
+        }
+
+        .glass-avatar {
+            position: absolute;
+            width: 50px;
+            height: 50px;
+            background: radial-gradient(circle at 30% 30%, 
+                rgba(255,255,255,0.9), 
+                rgba(150,200,255,0.3));
+            border-radius: 15px;
+            box-shadow: 0 0 30px rgba(150,200,255,0.4);
+            transition: all 0.2s ease-out;
+            cursor: pointer;
+        }
+
+        .time-crystal {
+            position: absolute;
+            width: 40px;
+            height: 40px;
+            background: rgba(255,255,255,0.1);
+            clip-path: polygon(50% 0%, 100% 25%, 100% 75%, 50% 100%, 0% 75%, 0% 25%);
+            animation: crystalGlow 2s infinite;
+        }
+
+        .mirror-surface {
+            position: absolute;
+            background: linear-gradient(45deg, 
+                rgba(255,255,255,0.05), 
+                rgba(255,255,255,0.15));
+            backdrop-filter: blur(3px);
+            border: 1px solid rgba(255,255,255,0.2);
+        }
+
+        @keyframes crystalGlow {
+            0%, 100% { box-shadow: 0 0 20px rgba(100,150,255,0.3); }
+            50% { box-shadow: 0 0 40px rgba(100,150,255,0.6); }
+        }
+
+        .time-echo {
+            position: absolute;
+            opacity: 0.3;
+            pointer-events: none;
+        }
+
+        #timeBar {
+            position: fixed;
+            top: 20px;
+            width: 200px;
+            height: 20px;
+            background: rgba(255,255,255,0.1);
+            border-radius: 10px;
+        }
+
+        #timeFill {
+            height: 100%;
+            background: linear-gradient(90deg, #4facfe, #00f2fe);
+            border-radius: 10px;
+            transition: width 0.3s ease;
+        }
+    </style>
+</head>
+<body>
+    <div id="timeBar"><div id="timeFill" style="width: 100%"></div></div>
+    <div id="gameWorld"></div>
+
+    <script>
+        const game = {
+            player: null,
+            crystals: [],
+            timeline: [],
+            timeEnergy: 100,
+            isRewinding: false
+        };
+
+        function init() {
+            createPlayer();
+            generateLevel();
+            gameLoop();
+        }
+
+        function createPlayer() {
+            game.player = document.createElement('div');
+            game.player.className = 'glass-avatar';
+            game.player.style.left = '100px';
+            game.player.style.top = '700px';
+            gameWorld.appendChild(game.player);
+        }
+
+        function generateLevel() {
+            // Create time crystals
+            for(let i = 0; i < 8; i++) {
+                const crystal = document.createElement('div');
+                crystal.className = 'time-crystal';
+                crystal.style.left = `${200 + i*120}px`;
+                crystal.style.top = `${Math.random()*600 + 100}px`;
+                gameWorld.appendChild(crystal);
+                game.crystals.push(crystal);
+            }
+
+            // Create mirror platforms
+            createMirror(300, 600, 400, 20);
+            createMirror(700, 400, 300, 20);
+            createMirror(200, 200, 200, 20);
+        }
+
+        function createMirror(x, y, w, h) {
+            const mirror = document.createElement('div');
+            mirror.className = 'mirror-surface';
+            mirror.style.width = `${w}px`;
+            mirror.style.height = `${h}px`;
+            mirror.style.left = `${x}px`;
+            mirror.style.top = `${y}px`;
+            gameWorld.appendChild(mirror);
+        }
+
+        function recordState() {
+            if(game.timeEnergy <= 0) return;
+            
+            game.timeline.push({
+                x: parseInt(game.player.style.left),
+                y: parseInt(game.player.style.top)
+            });
+            
+            if(game.timeline.length > 100) game.timeline.shift();
+        }
+
+        function rewindTime() {
+            if(game.timeline.length === 0) return;
+            
+            const state = game.timeline.pop();
+            game.player.style.left = `${state.x}px`;
+            game.player.style.top = `${state.y}px`;
+            
+            // Create time echo
+            const echo = document.createElement('div');
+            echo.className = 'glass-avatar time-echo';
+            echo.style.left = game.player.style.left;
+            echo.style.top = game.player.style.top;
+            gameWorld.appendChild(echo);
+            setTimeout(() => echo.remove(), 1000);
+        }
+
+        function updateTimeEnergy() {
+            game.timeEnergy = Math.min(100, game.timeEnergy + (game.isRewinding ? -0.5 : 0.1));
+            document.getElementById('timeFill').style.width = `${game.timeEnergy}%`;
+        }
+
+        function gameLoop() {
+            if(!game.isRewinding) {
+                recordState();
+            } else {
+                rewindTime();
+            }
+            
+            updateTimeEnergy();
+            checkCrystalCollision();
+            requestAnimationFrame(gameLoop);
+        }
+
+        function checkCrystalCollision() {
+            game.crystals.forEach((crystal, index) => {
+                const crystalRect = crystal.getBoundingClientRect();
+                const playerRect = game.player.getBoundingClientRect();
+                
+                if(
+                    playerRect.left < crystalRect.right &&
+                    playerRect.right > crystalRect.left &&
+                    playerRect.top < crystalRect.bottom &&
+                    playerRect.bottom > crystalRect.top
+                ) {
+                    crystal.remove();
+                    game.crystals.splice(index, 1);
+                    game.timeEnergy = Math.min(100, game.timeEnergy + 15);
+                }
+            });
+        }
+
+        // Controls
+        document.addEventListener('keydown', (e) => {
+            const speed = 15;
+            const rect = game.player.getBoundingClientRect();
+            
+            if(e.key === 'Shift') {
+                game.isRewinding = true;
+                return;
+            }
+
+            if(!game.isRewinding) {
+                switch(e.key) {
+                    case 'ArrowLeft': 
+                        game.player.style.left = `${rect.left - speed}px`;
+                        break;
+                    case 'ArrowRight':
+                        game.player.style.left = `${rect.left + speed}px`;
+                        break;
+                    case 'ArrowUp':
+                        game.player.style.top = `${rect.top - speed}px`;
+                        break;
+                    case 'ArrowDown':
+                        game.player.style.top = `${rect.top + speed}px`;
+                        break;
+                }
+            }
+        });
+
+        document.addEventListener('keyup', (e) => {
+            if(e.key === 'Shift') {
+                game.isRewinding = false;
+            }
+        });
+
+        // Initialize game
+        init();
+    </script>
+</body>
+</html>

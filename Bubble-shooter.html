@@ -1,0 +1,313 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Bubble Shooter</title>
+    <style>
+        body {
+            margin: 0;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            background: #1a1a1a;
+            font-family: Arial, sans-serif;
+            color: white;
+        }
+
+        #gameContainer {
+            position: relative;
+            width: 500px;
+            height: 600px;
+            margin: 20px;
+            background: #000;
+            border: 2px solid #333;
+            overflow: hidden;
+        }
+
+        .bubble {
+            position: absolute;
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+
+        #shooter {
+            position: absolute;
+            bottom: 20px;
+            left: 50%;
+            transform-origin: center bottom;
+            width: 4px;
+            height: 40px;
+            background: white;
+        }
+
+        #activeBubble {
+            position: absolute;
+            bottom: 20px;
+            left: calc(50% - 20px);
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+        }
+
+        #nextBubble {
+            position: absolute;
+            bottom: 20px;
+            right: 20px;
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+        }
+
+        #score {
+            font-size: 24px;
+            margin: 10px;
+        }
+
+        #controls {
+            margin: 10px;
+        }
+
+        button {
+            padding: 10px 20px;
+            font-size: 16px;
+            background: #4CAF50;
+            border: none;
+            color: white;
+            cursor: pointer;
+            margin: 5px;
+            border-radius: 5px;
+        }
+
+        button:hover {
+            background: #45a049;
+        }
+    </style>
+</head>
+<body>
+    <div id="score">Score: 0</div>
+    <div id="gameContainer">
+        <div id="shooter"></div>
+        <div id="activeBubble"></div>
+        <div id="nextBubble"></div>
+    </div>
+    <div id="controls">
+        <button onclick="startGame()">New Game</button>
+    </div>
+
+    <script>
+        const COLORS = ['#ff0000', '#00ff00', '#0000ff', '#ffff00', '#ff00ff'];
+        const ROWS = 10;
+        const COLS = 12;
+        const BUBBLE_SIZE = 40;
+        const SHOOT_SPEED = 10;
+
+        let bubbles = [];
+        let activeBubble = null;
+        let nextBubble = null;
+        let shooterAngle = 0;
+        let score = 0;
+        let isGameRunning = false;
+        let shootingBubble = null;
+
+        const container = document.getElementById('gameContainer');
+        const shooter = document.getElementById('shooter');
+        const activeBubbleElement = document.getElementById('activeBubble');
+        const nextBubbleElement = document.getElementById('nextBubble');
+
+        function createBubble(row, col, color) {
+            const bubble = document.createElement('div');
+            bubble.className = 'bubble';
+            bubble.style.backgroundColor = color;
+            bubble.style.left = (col * BUBBLE_SIZE) + 'px';
+            bubble.style.top = (row * BUBBLE_SIZE) + 'px';
+            container.appendChild(bubble);
+            return {
+                element: bubble,
+                row,
+                col,
+                color,
+                x: col * BUBBLE_SIZE,
+                y: row * BUBBLE_SIZE
+            };
+        }
+
+        function initializeGrid() {
+            for (let row = 0; row < 5; row++) {
+                for (let col = 0; col < COLS; col++) {
+                    const color = COLORS[Math.floor(Math.random() * COLORS.length)];
+                    bubbles.push(createBubble(row, col, color));
+                }
+            }
+        }
+
+        function createNewBubble() {
+            const color = COLORS[Math.floor(Math.random() * COLORS.length)];
+            activeBubbleElement.style.backgroundColor = color;
+            return { color };
+        }
+
+        function updateShooterAngle(e) {
+            if (!isGameRunning) return;
+            
+            const rect = container.getBoundingClientRect();
+            const x = e.clientX - rect.left;
+            const y = e.clientY - rect.top;
+            
+            const deltaX = x - (container.offsetWidth / 2);
+            const deltaY = container.offsetHeight - y;
+            
+            shooterAngle = Math.atan2(deltaX, deltaY);
+            shooter.style.transform = `rotate(${shooterAngle}rad)`;
+        }
+
+        function shootBubble() {
+            if (!isGameRunning || shootingBubble) return;
+
+            const angle = shooterAngle;
+            const speed = SHOOT_SPEED;
+            const color = activeBubble.color;
+
+            shootingBubble = {
+                element: document.createElement('div'),
+                x: container.offsetWidth / 2 - BUBBLE_SIZE / 2,
+                y: container.offsetHeight - BUBBLE_SIZE,
+                dx: Math.sin(angle) * speed,
+                dy: -Math.cos(angle) * speed,
+                color
+            };
+
+            shootingBubble.element.className = 'bubble';
+            shootingBubble.element.style.backgroundColor = color;
+            container.appendChild(shootingBubble.element);
+
+            activeBubble = nextBubble;
+            activeBubbleElement.style.backgroundColor = activeBubble.color;
+            nextBubble = createNewBubble();
+            nextBubbleElement.style.backgroundColor = nextBubble.color;
+
+            requestAnimationFrame(updateShootingBubble);
+        }
+
+        function updateShootingBubble() {
+            if (!shootingBubble) return;
+
+            shootingBubble.x += shootingBubble.dx;
+            shootingBubble.y += shootingBubble.dy;
+
+            // Check wall collisions
+            if (shootingBubble.x <= 0 || shootingBubble.x >= container.offsetWidth - BUBBLE_SIZE) {
+                shootingBubble.dx *= -1;
+            }
+
+            // Update position
+            shootingBubble.element.style.left = shootingBubble.x + 'px';
+            shootingBubble.element.style.top = shootingBubble.y + 'px';
+
+            // Check collision with existing bubbles
+            const collision = checkCollision();
+            if (collision || shootingBubble.y <= 0) {
+                attachBubble();
+                return;
+            }
+
+            requestAnimationFrame(updateShootingBubble);
+        }
+
+        function checkCollision() {
+            for (const bubble of bubbles) {
+                const dx = (shootingBubble.x + BUBBLE_SIZE/2) - (bubble.x + BUBBLE_SIZE/2);
+                const dy = (shootingBubble.y + BUBBLE_SIZE/2) - (bubble.y + BUBBLE_SIZE/2);
+                const distance = Math.sqrt(dx * dx + dy * dy);
+
+                if (distance < BUBBLE_SIZE) {
+                    return true;
+                }
+            }
+            return false;
+        }
+
+        function attachBubble() {
+            const col = Math.round(shootingBubble.x / BUBBLE_SIZE);
+            const row = Math.round(shootingBubble.y / BUBBLE_SIZE);
+
+            const newBubble = createBubble(row, col, shootingBubble.color);
+            bubbles.push(newBubble);
+
+            shootingBubble.element.remove();
+            shootingBubble = null;
+
+            checkMatches(newBubble);
+        }
+
+        function checkMatches(bubble) {
+            const matches = findMatches(bubble);
+            if (matches.size >= 3) {
+                matches.forEach(b => {
+                    b.element.remove();
+                    bubbles = bubbles.filter(bb => bb !== b);
+                });
+                score += matches.size * 10;
+                document.getElementById('score').textContent = `Score: ${score}`;
+            }
+        }
+
+        function findMatches(bubble) {
+            const matches = new Set();
+            const toCheck = [bubble];
+            
+            while (toCheck.length > 0) {
+                const current = toCheck.pop();
+                if (!matches.has(current)) {
+                    matches.add(current);
+                    
+                    // Find neighbors with same color
+                    const neighbors = getNeighbors(current);
+                    for (const neighbor of neighbors) {
+                        if (neighbor.color === current.color) {
+                            toCheck.push(neighbor);
+                        }
+                    }
+                }
+            }
+
+            return matches;
+        }
+
+        function getNeighbors(bubble) {
+            return bubbles.filter(b => {
+                const dx = b.col - bubble.col;
+                const dy = b.row - bubble.row;
+                const distance = Math.sqrt(dx * dx + dy * dy);
+                return distance <= 1.5 && b !== bubble;
+            });
+        }
+
+        function startGame() {
+            // Clear previous game
+            bubbles.forEach(b => b.element.remove());
+            bubbles = [];
+            if (shootingBubble) {
+                shootingBubble.element.remove();
+                shootingBubble = null;
+            }
+
+            score = 0;
+            document.getElementById('score').textContent = `Score: ${score}`;
+
+            // Initialize new game
+            initializeGrid();
+            activeBubble = createNewBubble();
+            nextBubble = createNewBubble();
+            nextBubbleElement.style.backgroundColor = nextBubble.color;
+            isGameRunning = true;
+        }
+
+        // Event listeners
+        container.addEventListener('mousemove', updateShooterAngle);
+        container.addEventListener('click', shootBubble);
+    </script>
+</body>
+</html>

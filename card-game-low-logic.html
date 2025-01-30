@@ -1,0 +1,263 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Card Battle</title>
+    <style>
+        body {
+            margin: 0;
+            padding: 20px;
+            background: #1a1a1a;
+            color: white;
+            font-family: Arial, sans-serif;
+        }
+        .game-area {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 20px;
+        }
+        .player-stats, .enemy-stats {
+            display: flex;
+            gap: 20px;
+            font-size: 20px;
+        }
+        .hand {
+            display: flex;
+            gap: 10px;
+            flex-wrap: wrap;
+        }
+        .card {
+            width: 120px;
+            height: 180px;
+            background: #333;
+            border: 2px solid #666;
+            border-radius: 10px;
+            padding: 10px;
+            cursor: pointer;
+            transition: transform 0.2s;
+            position: relative;
+        }
+        .card:hover {
+            transform: translateY(-10px);
+            border-color: #0ff;
+        }
+        .card.enemy {
+            background: #433;
+        }
+        .card-name {
+            font-weight: bold;
+            margin-bottom: 5px;
+        }
+        .card-cost {
+            position: absolute;
+            top: 5px;
+            right: 5px;
+            background: #00f;
+            padding: 3px 8px;
+            border-radius: 50%;
+        }
+        .card-attack, .card-defense {
+            position: absolute;
+            bottom: 5px;
+            padding: 3px 8px;
+            border-radius: 5px;
+        }
+        .card-attack {
+            left: 5px;
+            background: #f00;
+        }
+        .card-defense {
+            right: 5px;
+            background: #0f0;
+        }
+        .end-turn {
+            padding: 10px 20px;
+            font-size: 18px;
+            background: #505;
+            border: none;
+            color: white;
+            border-radius: 5px;
+            cursor: pointer;
+        }
+        .end-turn:hover {
+            background: #707;
+        }
+    </style>
+</head>
+<body>
+    <div class="game-area">
+        <div class="enemy-stats">
+            <div>Enemy HP: <span id="enemyHp">30</span></div>
+            <div>Energy: <span id="enemyEnergy">3</span></div>
+        </div>
+        <div id="enemyHand" class="hand"></div>
+        <hr style="width: 100%;">
+        <div id="playerHand" class="hand"></div>
+        <div class="player-stats">
+            <div>Player HP: <span id="playerHp">30</span></div>
+            <div>Energy: <span id="playerEnergy">3</span></div>
+        </div>
+        <button class="end-turn" onclick="endTurn()">End Turn</button>
+    </div>
+
+    <script>
+        const state = {
+            playerHp: 30,
+            enemyHp: 30,
+            playerEnergy: 3,
+            enemyEnergy: 3,
+            playerHand: [],
+            enemyHand: [],
+            playerDeck: [],
+            enemyDeck: [],
+            isPlayerTurn: true
+        };
+
+        const cardTypes = [
+            { name: "Slash", cost: 1, attack: 4, defense: 0 },
+            { name: "Shield", cost: 1, attack: 0, defense: 5 },
+            { name: "Heavy Strike", cost: 2, attack: 7, defense: 0 },
+            { name: "Guard", cost: 2, attack: 0, defense: 8 },
+            { name: "Balanced Strike", cost: 2, attack: 4, defense: 3 },
+            { name: "Quick Strike", cost: 1, attack: 3, defense: 2 }
+        ];
+
+        function createDeck() {
+            const deck = [];
+            for(let i = 0; i < 3; i++) {
+                cardTypes.forEach(card => {
+                    deck.push({...card});
+                });
+            }
+            return shuffle(deck);
+        }
+
+        function shuffle(array) {
+            return array.sort(() => Math.random() - 0.5);
+        }
+
+        function createCard(card, isEnemy = false) {
+            const div = document.createElement('div');
+            div.className = `card ${isEnemy ? 'enemy' : ''}`;
+            div.innerHTML = `
+                <div class="card-name">${card.name}</div>
+                <div class="card-cost">${card.cost}</div>
+                <div class="card-attack">${card.attack}</div>
+                <div class="card-defense">${card.defense}</div>
+            `;
+            if(!isEnemy) {
+                div.onclick = () => playCard(card);
+            }
+            return div;
+        }
+
+        function drawCard(isEnemy = false) {
+            const deck = isEnemy ? state.enemyDeck : state.playerDeck;
+            const hand = isEnemy ? state.enemyHand : state.playerHand;
+            if(deck.length > 0 && hand.length < 5) {
+                const card = deck.pop();
+                hand.push(card);
+                updateHands();
+            }
+        }
+
+        function updateHands() {
+            const playerHand = document.getElementById('playerHand');
+            const enemyHand = document.getElementById('enemyHand');
+            playerHand.innerHTML = '';
+            enemyHand.innerHTML = '';
+            
+            state.playerHand.forEach(card => {
+                playerHand.appendChild(createCard(card));
+            });
+            state.enemyHand.forEach(card => {
+                enemyHand.appendChild(createCard(card, true));
+            });
+        }
+
+        function updateStats() {
+            document.getElementById('playerHp').textContent = state.playerHp;
+            document.getElementById('enemyHp').textContent = state.enemyHp;
+            document.getElementById('playerEnergy').textContent = state.playerEnergy;
+            document.getElementById('enemyEnergy').textContent = state.enemyEnergy;
+        }
+
+        function playCard(card) {
+            if(!state.isPlayerTurn) return;
+            if(state.playerEnergy < card.cost) return;
+
+            state.playerEnergy -= card.cost;
+            state.enemyHp -= card.attack;
+            state.playerHp += card.defense;
+
+            const cardIndex = state.playerHand.indexOf(card);
+            state.playerHand.splice(cardIndex, 1);
+
+            updateHands();
+            updateStats();
+
+            if(state.enemyHp <= 0) {
+                alert('You win!');
+                initGame();
+            }
+        }
+
+        function enemyTurn() {
+            state.enemyEnergy = 3;
+            drawCard(true);
+
+            setTimeout(() => {
+                const playableCards = state.enemyHand.filter(card => card.cost <= state.enemyEnergy);
+                if(playableCards.length > 0) {
+                    const card = playableCards[Math.floor(Math.random() * playableCards.length)];
+                    state.enemyEnergy -= card.cost;
+                    state.playerHp -= card.attack;
+                    state.enemyHp += card.defense;
+
+                    const cardIndex = state.enemyHand.indexOf(card);
+                    state.enemyHand.splice(cardIndex, 1);
+
+                    updateHands();
+                    updateStats();
+
+                    if(state.playerHp <= 0) {
+                        alert('Game Over!');
+                        initGame();
+                    }
+                }
+                state.isPlayerTurn = true;
+            }, 1000);
+        }
+
+        function endTurn() {
+            if(!state.isPlayerTurn) return;
+            state.isPlayerTurn = false;
+            state.playerEnergy = 3;
+            drawCard();
+            enemyTurn();
+        }
+
+        function initGame() {
+            state.playerHp = 30;
+            state.enemyHp = 30;
+            state.playerEnergy = 3;
+            state.enemyEnergy = 3;
+            state.playerDeck = createDeck();
+            state.enemyDeck = createDeck();
+            state.playerHand = [];
+            state.enemyHand = [];
+            state.isPlayerTurn = true;
+
+            for(let i = 0; i < 3; i++) {
+                drawCard();
+                drawCard(true);
+            }
+
+            updateHands();
+            updateStats();
+        }
+
+        initGame();
+    </script>
+</body>
+</html>

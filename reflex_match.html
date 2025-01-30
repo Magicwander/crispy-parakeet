@@ -1,0 +1,182 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Color Match Reflex</title>
+    <style>
+        body {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            background: #1a1a1a;
+            font-family: Arial, sans-serif;
+            color: white;
+        }
+
+        #gameContainer {
+            position: relative;
+            width: 80vw;
+            height: 60vh;
+            margin: 20px;
+            border: 2px solid white;
+            border-radius: 10px;
+            overflow: hidden;
+        }
+
+        .colorBox {
+            position: absolute;
+            cursor: pointer;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            font-size: 1.2em;
+            font-weight: bold;
+            border-radius: 8px;
+            transition: all 0.3s ease;
+        }
+
+        #score {
+            font-size: 2em;
+            margin: 10px;
+        }
+
+        #timer {
+            font-size: 1.5em;
+            color: #ffd700;
+        }
+
+        #startBtn {
+            padding: 10px 20px;
+            font-size: 1.2em;
+            margin: 20px;
+            background: #4CAF50;
+            border: none;
+            border-radius: 5px;
+            color: white;
+            cursor: pointer;
+            transition: background 0.3s;
+        }
+
+        #startBtn:hover {
+            background: #45a049;
+        }
+
+        .correct {
+            animation: correctAnim 0.5s;
+        }
+
+        .wrong {
+            animation: wrongAnim 0.5s;
+        }
+
+        @keyframes correctAnim {
+            50% { transform: scale(1.1); }
+        }
+
+        @keyframes wrongAnim {
+            0%, 100% { transform: translateX(0); }
+            25% { transform: translateX(-10px); }
+            75% { transform: translateX(10px); }
+        }
+    </style>
+</head>
+<body>
+    <div id="score">Score: 0</div>
+    <div id="timer">Time: 60</div>
+    <div id="gameContainer"></div>
+    <button id="startBtn">Start Game</button>
+
+    <script>
+        const colors = ['red', 'blue', 'green', 'yellow', 'purple', 'orange'];
+        let score = 0;
+        let timeLeft = 60;
+        let gameTimer;
+        let boxes = [];
+        let correctPosition;
+
+        function createBox() {
+            const gameContainer = document.getElementById('gameContainer');
+            gameContainer.innerHTML = '';
+            boxes = [];
+            
+            // Create multiple boxes
+            for(let i = 0; i < 6; i++) {
+                const box = document.createElement('div');
+                box.className = 'colorBox';
+                box.style.width = `${Math.random() * 100 + 100}px`;
+                box.style.height = `${Math.random() * 50 + 50}px`;
+                box.style.left = `${Math.random() * (gameContainer.offsetWidth - 150)}px`;
+                box.style.top = `${Math.random() * (gameContainer.offsetHeight - 100)}px`;
+                
+                // Random text and color (ensure at least one mismatch)
+                const textColor = colors[Math.floor(Math.random() * colors.length)];
+                let textWord = colors[Math.floor(Math.random() * colors.length)];
+                
+                // Force one correct match per round
+                if(i === 0) {
+                    textWord = textColor;
+                    correctPosition = box;
+                }
+                
+                box.style.color = textColor;
+                box.textContent = textWord.toUpperCase();
+                
+                box.addEventListener('click', () => handleBoxClick(box));
+                gameContainer.appendChild(box);
+                boxes.push(box);
+            }
+            
+            // Randomly shuffle correct position
+            boxes.sort(() => Math.random() - 0.5).forEach(box => {
+                gameContainer.appendChild(box);
+            });
+        }
+
+        function handleBoxClick(clickedBox) {
+            if(clickedBox === correctPosition) {
+                score += 10;
+                document.getElementById('score').textContent = `Score: ${score}`;
+                clickedBox.classList.add('correct');
+                setTimeout(createBox, 500);
+            } else {
+                score = Math.max(0, score - 5);
+                document.getElementById('score').textContent = `Score: ${score}`;
+                clickedBox.classList.add('wrong');
+                setTimeout(() => clickedBox.classList.remove('wrong'), 500);
+            }
+        }
+
+        function updateTimer() {
+            timeLeft--;
+            document.getElementById('timer').textContent = `Time: ${timeLeft}`;
+            if(timeLeft <= 0) {
+                endGame();
+            }
+        }
+
+        function startGame() {
+            score = 0;
+            timeLeft = 60;
+            document.getElementById('score').textContent = `Score: ${score}`;
+            document.getElementById('timer').textContent = `Time: ${timeLeft}`;
+            document.getElementById('startBtn').disabled = true;
+            gameTimer = setInterval(updateTimer, 1000);
+            createBox();
+        }
+
+        function endGame() {
+            clearInterval(gameTimer);
+            document.getElementById('startBtn').disabled = false;
+            document.getElementById('gameContainer').innerHTML = 
+                `<div style="position:absolute; top:50%; left:50%; transform:translate(-50%,-50%); 
+                font-size:2em; text-align:center;">
+                    Game Over!<br>
+                    Final Score: ${score}
+                </div>`;
+        }
+
+        document.getElementById('startBtn').addEventListener('click', startGame);
+    </script>
+</body>
+</html>

@@ -1,0 +1,378 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Luminary Journey</title>
+    <style>
+        body {
+            margin: 0;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            background: linear-gradient(45deg, #1a2a6c, #b21f1f, #fdbb2d);
+            font-family: Arial, sans-serif;
+            overflow: hidden;
+        }
+
+        #gameContainer {
+            position: relative;
+            width: 600px;
+            height: 600px;
+            background: rgba(255, 255, 255, 0.1);
+            backdrop-filter: blur(10px);
+            border-radius: 20px;
+            border: 1px solid rgba(255, 255, 255, 0.3);
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.2);
+            overflow: hidden;
+        }
+
+        #player {
+            position: absolute;
+            width: 20px;
+            height: 20px;
+            background: rgba(255, 255, 255, 0.95);
+            border-radius: 50%;
+            box-shadow: 0 0 20px rgba(255, 255, 255, 0.8);
+            z-index: 2;
+            transition: all 0.1s;
+        }
+
+        .memory {
+            position: absolute;
+            width: 25px;
+            height: 25px;
+            background: rgba(255, 255, 255, 0.9);
+            border-radius: 50%;
+            box-shadow: 0 0 20px rgba(255, 255, 255, 0.8);
+            animation: glow 2s infinite;
+        }
+
+        .shadow {
+            position: absolute;
+            width: 25px;
+            height: 25px;
+            background: rgba(100, 100, 100, 0.6);
+            border-radius: 50%;
+            box-shadow: 0 0 15px rgba(0, 0, 0, 0.5);
+            animation: throb 1.5s infinite;
+        }
+
+        #hud {
+            position: absolute;
+            top: 20px;
+            left: 20px;
+            color: white;
+            font-size: 18px;
+            text-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+        }
+
+        #wisdom {
+            position: absolute;
+            top: 20px;
+            right: 20px;
+            width: 200px;
+            color: white;
+            font-style: italic;
+            text-align: center;
+            opacity: 0;
+            transition: opacity 1s;
+        }
+
+        #gameOver {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background: rgba(255, 255, 255, 0.2);
+            padding: 30px 50px;
+            border-radius: 20px;
+            text-align: center;
+            backdrop-filter: blur(10px);
+            color: white;
+            display: none;
+        }
+
+        button {
+            background: rgba(255, 255, 255, 0.3);
+            border: none;
+            padding: 12px 30px;
+            border-radius: 8px;
+            color: white;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+
+        button:hover {
+            background: rgba(255, 255, 255, 0.4);
+            transform: translateY(-2px);
+        }
+
+        @keyframes glow {
+            0%, 100% { transform: scale(1); }
+            50% { transform: scale(1.2); }
+        }
+
+        @keyframes throb {
+            0%, 100% { transform: scale(1); }
+            50% { transform: scale(1.1); }
+        }
+    </style>
+</head>
+<body>
+    <div id="gameContainer">
+        <div id="hud">
+            <div>Soul Light: <span id="light">100%</span></div>
+            <div>Memories Collected: <span id="memories">0</span></div>
+        </div>
+        <div id="wisdom"></div>
+        <div id="player"></div>
+        <div id="gameOver">
+            <h2>Journey's End</h2>
+            <p id="endMessage"></p>
+            <button onclick="startGame()">Begin Anew</button>
+        </div>
+    </div>
+
+    <script>
+        const gameContainer = document.getElementById('gameContainer');
+        const player = document.getElementById('player');
+        const scoreElement = document.getElementById('memories');
+        const lightElement = document.getElementById('light');
+        const gameOverScreen = document.getElementById('gameOver');
+        const wisdomElement = document.getElementById('wisdom');
+
+        let playerX = 290;
+        let playerY = 550;
+        let lightLevel = 100;
+        let memoriesCollected = 0;
+        let gameActive = true;
+        let memories = [];
+        let shadows = [];
+        
+        const wisdomQuotes = [
+            "The wound is the place where the Light enters you. - Rumi",
+            "You are not your darkness. - Unknown",
+            "Healing is not linear. - Unknown",
+            "The soul always knows what to do. - C.G. Jung",
+            "Every darkness has its dawn. - Unknown",
+            "Light tomorrow with today. - Elizabeth Barrett Browning",
+            "Where there is light, there is hope. - Augustine",
+            "In light, we find ourselves. - Unknown"
+        ];
+
+        function createMemory() {
+            // Create a grid system for better distribution
+            const gridSize = 100; // 6 x 6 grid (600px / 100px)
+            const unusedCells = [];
+            
+            // Create array of possible positions
+            for (let x = 0; x < 6; x++) {
+                for (let y = 0; y < 6; y++) {
+                    unusedCells.push({x, y});
+                }
+            }
+
+            const memory = document.createElement('div');
+            memory.className = 'memory';
+            
+            // Get random grid cell
+            const cellIndex = Math.floor(Math.random() * unusedCells.length);
+            const cell = unusedCells[cellIndex];
+            
+            // Add some randomness within the cell
+            const offsetX = Math.random() * (gridSize - 25); // 25 is memory width
+            const offsetY = Math.random() * (gridSize - 25);
+            
+            // Set position
+            const xPos = (cell.x * gridSize) + offsetX;
+            const yPos = (cell.y * gridSize) + offsetY;
+            
+            memory.style.left = xPos + 'px';
+            memory.style.top = yPos + 'px';
+            memory.dataset.gridX = cell.x;
+            memory.dataset.gridY = cell.y;
+            
+            gameContainer.appendChild(memory);
+            memories.push(memory);
+        }
+
+        function createShadow() {
+            // Use similar grid system for shadows
+            const gridSize = 150; // 4 x 4 grid (600px / 150px)
+            const unusedCells = [];
+            
+            // Create array of possible positions, excluding cells with memories
+            for (let x = 0; x < 4; x++) {
+                for (let y = 0; y < 4; y++) {
+                    // Check if cell is far enough from memories
+                    let isSafe = true;
+                    for (let memory of memories) {
+                        const memX = parseInt(memory.dataset.gridX);
+                        const memY = parseInt(memory.dataset.gridY);
+                        if (Math.abs(x*1.5 - memX) < 2 && Math.abs(y*1.5 - memY) < 2) {
+                            isSafe = false;
+                            break;
+                        }
+                    }
+                    if (isSafe) {
+                        unusedCells.push({x, y});
+                    }
+                }
+            }
+
+            if (unusedCells.length === 0) return; // Skip if no safe positions
+
+            const shadow = document.createElement('div');
+            shadow.className = 'shadow';
+            
+            // Get random available cell
+            const cellIndex = Math.floor(Math.random() * unusedCells.length);
+            const cell = unusedCells[cellIndex];
+            
+            // Add some randomness within the cell
+            const offsetX = Math.random() * (gridSize - 25);
+            const offsetY = Math.random() * (gridSize - 25);
+            
+            // Set position
+            const xPos = (cell.x * gridSize) + offsetX;
+            const yPos = (cell.y * gridSize) + offsetY;
+            
+            shadow.style.left = xPos + 'px';
+            shadow.style.top = yPos + 'px';
+            
+            gameContainer.appendChild(shadow);
+            shadows.push(shadow);
+        }
+
+        function showWisdom() {
+            wisdomElement.textContent = wisdomQuotes[Math.floor(Math.random() * wisdomQuotes.length)];
+            wisdomElement.style.opacity = 1;
+            setTimeout(() => wisdomElement.style.opacity = 0, 3000);
+        }
+
+        function updateGame() {
+            if (!gameActive) return;
+
+            lightLevel -= 0.05;
+            lightElement.textContent = `${Math.max(0, lightLevel).toFixed(1)}%`;
+
+            // Adjust player glow based on light level
+            player.style.boxShadow = `0 0 ${lightLevel/5 + 5}px rgba(255, 255, 255, ${lightLevel/100})`;
+
+            if (lightLevel <= 0) {
+                endGame("Even light needs replenishment. Rest and begin anew.");
+            }
+
+            // Respawn memories if all are collected
+            if (memories.length === 0) {
+                for (let i = 0; i < 8; i++) createMemory();
+                for (let i = 0; i < 3; i++) createShadow();
+            }
+        }
+
+        function checkCollision(element1, element2) {
+            const rect1 = element1.getBoundingClientRect();
+            const rect2 = element2.getBoundingClientRect();
+            return !(rect1.right < rect2.left || 
+                    rect1.left > rect2.right || 
+                    rect1.bottom < rect2.top || 
+                    rect1.top > rect2.bottom);
+        }
+
+        function checkCollisions() {
+            memories.forEach((memory, index) => {
+                if (checkCollision(player, memory)) {
+                    memory.remove();
+                    memories.splice(index, 1);
+                    memoriesCollected++;
+                    lightLevel = Math.min(100, lightLevel + 20);
+                    scoreElement.textContent = memoriesCollected;
+                    showWisdom();
+                }
+            });
+
+            shadows.forEach(shadow => {
+                if (checkCollision(player, shadow)) {
+                    lightLevel = Math.max(0, lightLevel - 2);
+                }
+            });
+        }
+
+        function endGame(message) {
+            gameActive = false;
+            document.getElementById('endMessage').textContent = message;
+            gameOverScreen.style.display = 'block';
+        }
+
+        function startGame() {
+            // Reset game state
+            playerX = 290;
+            playerY = 550;
+            lightLevel = 100;
+            memoriesCollected = 0;
+            gameActive = true;
+            scoreElement.textContent = '0';
+            lightElement.textContent = '100%';
+            gameOverScreen.style.display = 'none';
+            
+            // Clear elements
+            memories.forEach(m => m.remove());
+            memories = [];
+            shadows.forEach(s => s.remove());
+            shadows = [];
+            
+            // Create new elements
+            for (let i = 0; i < 8; i++) createMemory();
+            for (let i = 0; i < 3; i++) createShadow();
+            
+            updatePlayerPosition();
+            gameLoop();
+        }
+
+        function updatePlayerPosition() {
+            player.style.left = playerX + 'px';
+            player.style.top = playerY + 'px';
+        }
+
+        function handleKeyPress(e) {
+            if (!gameActive) return;
+            
+            const speed = 10;
+            let moved = false;
+            
+            switch(e.key) {
+                case 'ArrowUp':
+                    playerY = Math.max(0, playerY - speed);
+                    moved = true;
+                    break;
+                case 'ArrowDown':
+                    playerY = Math.min(580, playerY + speed);
+                    moved = true;
+                    break;
+                case 'ArrowLeft':
+                    playerX = Math.max(0, playerX - speed);
+                    moved = true;
+                    break;
+                case 'ArrowRight':
+                    playerX = Math.min(580, playerX + speed);
+                    moved = true;
+                    break;
+            }
+            
+            if (moved) {
+                updatePlayerPosition();
+                checkCollisions();
+            }
+        }
+
+        function gameLoop() {
+            updateGame();
+            checkCollisions();
+            if (gameActive) requestAnimationFrame(gameLoop);
+        }
+
+        document.addEventListener('keydown', handleKeyPress);
+        startGame();
+    </script>
+</body>
+</html>

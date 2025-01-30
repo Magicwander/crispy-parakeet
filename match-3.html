@@ -1,0 +1,405 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>CubeStack Evolution</title>
+    <style>
+        body {
+            margin: 0;
+            padding: 20px;
+            background: #0a0a1f;
+            font-family: Arial, sans-serif;
+            color: white;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+
+        #gameBoard {
+            width: 600px;
+            height: 600px;
+            position: relative;
+            perspective: 1000px;
+            margin: 20px;
+        }
+
+        .cube {
+            width: 60px;
+            height: 60px;
+            position: absolute;
+            transform-style: preserve-3d;
+            transition: all 0.3s ease;
+            cursor: pointer;
+        }
+
+        .cube:hover {
+            transform: scale(1.1) translateZ(5px);
+        }
+
+        .cube.selected {
+            transform: scale(1.2) translateZ(10px);
+            box-shadow: 0 0 20px rgba(255,255,255,0.5);
+        }
+
+        .cube.matched {
+            animation: pulse 0.5s ease-out;
+        }
+
+        .face {
+            position: absolute;
+            width: 100%;
+            height: 100%;
+            border: 2px solid rgba(255,255,255,0.1);
+            box-sizing: border-box;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            font-size: 20px;
+            font-weight: bold;
+            text-shadow: 1px 1px 1px rgba(0,0,0,0.5);
+        }
+
+        .front { transform: translateZ(30px); }
+        .back { transform: translateZ(-30px) rotateY(180deg); }
+        .right { transform: translateX(30px) rotateY(90deg); }
+        .left { transform: translateX(-30px) rotateY(-90deg); }
+        .top { transform: translateY(-30px) rotateX(90deg); }
+        .bottom { transform: translateY(30px) rotateX(-90deg); }
+
+        @keyframes pulse {
+            0% { transform: scale(1); }
+            50% { transform: scale(1.3); }
+            100% { transform: scale(1); }
+        }
+
+        #stats {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 20px;
+            background: rgba(255,255,255,0.1);
+            padding: 20px;
+            border-radius: 10px;
+            width: 600px;
+            margin-bottom: 20px;
+        }
+
+        .stat {
+            text-align: center;
+            font-size: 18px;
+        }
+
+        .stat-value {
+            font-size: 24px;
+            font-weight: bold;
+            color: #4CAF50;
+            margin-top: 5px;
+        }
+
+        #controls {
+            margin: 20px;
+        }
+
+        button {
+            padding: 12px 25px;
+            font-size: 18px;
+            background: linear-gradient(45deg, #4CAF50, #45a049);
+            border: none;
+            color: white;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            margin: 0 10px;
+        }
+
+        button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(76,175,80,0.4);
+        }
+
+        .power-up {
+            position: absolute;
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            background: radial-gradient(circle at 30% 30%, #fff, #7e57c2);
+            animation: float 2s infinite ease-in-out;
+            cursor: pointer;
+            z-index: 100;
+        }
+
+        @keyframes float {
+            0%, 100% { transform: translateY(0); }
+            50% { transform: translateY(-10px); }
+        }
+
+        #levelInfo {
+            position: absolute;
+            top: 20px;
+            right: 20px;
+            background: rgba(255,255,255,0.1);
+            padding: 15px;
+            border-radius: 10px;
+        }
+    </style>
+</head>
+<body>
+    <div id="stats">
+        <div class="stat">
+            Score
+            <div id="score" class="stat-value">0</div>
+        </div>
+        <div class="stat">
+            Level
+            <div id="level" class="stat-value">1</div>
+        </div>
+        <div class="stat">
+            Combos
+            <div id="combos" class="stat-value">0</div>
+        </div>
+        <div class="stat">
+            Height
+            <div id="height" class="stat-value">0</div>
+        </div>
+    </div>
+
+    <div id="gameBoard"></div>
+
+    <div id="controls">
+        <button onclick="startGame()">New Game</button>
+        <button onclick="rotateCubes()">Rotate</button>
+        <button onclick="usePowerUp()" id="powerUpBtn">Power Up</button>
+    </div>
+
+    <script>
+        const COLORS = [
+            '#FF4444', '#44FF44', '#4444FF', 
+            '#FFFF44', '#FF44FF', '#44FFFF'
+        ];
+        
+        const GRID_SIZE = 8;
+        let cubes = [];
+        let score = 0;
+        let level = 1;
+        let combos = 0;
+        let maxHeight = 0;
+        let selectedCube = null;
+        let powerUps = 0;
+
+        function createCube(x, y, z) {
+            const cube = document.createElement('div');
+            cube.className = 'cube';
+            cube.style.left = (x * 70 + 100) + 'px';
+            cube.style.top = (y * 70 + 100) + 'px';
+            
+            const color = COLORS[Math.floor(Math.random() * COLORS.length)];
+            const faces = ['front', 'back', 'right', 'left', 'top', 'bottom'];
+            
+            faces.forEach(face => {
+                const faceDiv = document.createElement('div');
+                faceDiv.className = `face ${face}`;
+                faceDiv.style.backgroundColor = color;
+                cube.appendChild(faceDiv);
+            });
+
+            cube.addEventListener('click', () => handleCubeClick(cube));
+            
+            return {
+                element: cube,
+                x, y, z,
+                color,
+                matched: false
+            };
+        }
+
+        function handleCubeClick(cubeElement) {
+            const cube = cubes.find(c => c.element === cubeElement);
+            if (!cube || cube.matched) return;
+
+            if (selectedCube === cube) {
+                deselectCube();
+            } else if (!selectedCube) {
+                selectCube(cube);
+            } else {
+                if (areAdjacent(selectedCube, cube) && selectedCube.color === cube.color) {
+                    matchCubes(selectedCube, cube);
+                } else {
+                    deselectCube();
+                    selectCube(cube);
+                }
+            }
+        }
+
+        function selectCube(cube) {
+            selectedCube = cube;
+            cube.element.classList.add('selected');
+        }
+
+        function deselectCube() {
+            if (selectedCube) {
+                selectedCube.element.classList.remove('selected');
+                selectedCube = null;
+            }
+        }
+
+        function areAdjacent(cube1, cube2) {
+            const dx = Math.abs(cube1.x - cube2.x);
+            const dy = Math.abs(cube1.y - cube2.y);
+            const dz = Math.abs(cube1.z - cube2.z);
+            return (dx + dy + dz === 1);
+        }
+
+        function matchCubes(cube1, cube2) {
+            cube1.matched = true;
+            cube2.matched = true;
+            cube1.element.classList.add('matched');
+            cube2.element.classList.add('matched');
+
+            score += 100 * (1 + combos);
+            combos++;
+            
+            setTimeout(() => {
+                cube1.element.remove();
+                cube2.element.remove();
+                cubes = cubes.filter(c => !c.matched);
+                
+                collapseCubes();
+                spawnNewCubes();
+                updateStats();
+                checkLevelUp();
+            }, 500);
+        }
+
+        function collapseCubes() {
+            for (let x = 0; x < GRID_SIZE; x++) {
+                for (let z = 0; z < GRID_SIZE; z++) {
+                    const column = cubes.filter(c => c.x === x && c.z === z)
+                        .sort((a, b) => b.y - a.y);
+                    
+                    let y = GRID_SIZE - 1;
+                    column.forEach(cube => {
+                        cube.y = y;
+                        cube.element.style.top = (y * 70 + 100) + 'px';
+                        y--;
+                    });
+                }
+            }
+        }
+
+        function spawnNewCubes() {
+            for (let x = 0; x < GRID_SIZE; x++) {
+                for (let z = 0; z < GRID_SIZE; z++) {
+                    const column = cubes.filter(c => c.x === x && c.z === z);
+                    while (column.length < GRID_SIZE) {
+                        const newCube = createCube(x, 0, z);
+                        cubes.push(newCube);
+                        document.getElementById('gameBoard').appendChild(newCube.element);
+                        column.push(newCube);
+                    }
+                }
+            }
+        }
+
+        function rotateCubes() {
+            const boardCenter = GRID_SIZE / 2 - 0.5;
+            cubes.forEach(cube => {
+                const dx = cube.x - boardCenter;
+                const dz = cube.z - boardCenter;
+                
+                const angle = Math.atan2(dz, dx);
+                const distance = Math.sqrt(dx * dx + dz * dz);
+                
+                const newAngle = angle + Math.PI / 2;
+                cube.x = Math.round(boardCenter + Math.cos(newAngle) * distance);
+                cube.z = Math.round(boardCenter + Math.sin(newAngle) * distance);
+                
+                cube.element.style.left = (cube.x * 70 + 100) + 'px';
+                updateCubeTransform(cube);
+            });
+        }
+
+        function updateCubeTransform(cube) {
+            const transform = `
+                translateX(${cube.x * 70}px)
+                translateY(${cube.y * 70}px)
+                translateZ(${cube.z * 20}px)
+                rotateY(${cube.z * 5}deg)
+            `;
+            cube.element.style.transform = transform;
+        }
+
+        function usePowerUp() {
+            if (powerUps <= 0) return;
+            
+            powerUps--;
+            const color = COLORS[Math.floor(Math.random() * COLORS.length)];
+            const matchingCubes = cubes.filter(c => c.color === color);
+            
+            matchingCubes.forEach(cube => {
+                cube.matched = true;
+                cube.element.classList.add('matched');
+                setTimeout(() => cube.element.remove(), 500);
+            });
+
+            cubes = cubes.filter(c => !c.matched);
+            setTimeout(() => {
+                collapseCubes();
+                spawnNewCubes();
+                updateStats();
+            }, 600);
+        }
+
+        function checkLevelUp() {
+            if (score >= level * 1000) {
+                level++;
+                powerUps++;
+                showLevelUpMessage();
+            }
+        }
+
+        function showLevelUpMessage() {
+            const msg = document.createElement('div');
+            msg.style.position = 'absolute';
+            msg.style.left = '50%';
+            msg.style.top = '50%';
+            msg.style.transform = 'translate(-50%, -50%)';
+            msg.style.fontSize = '36px';
+            msg.style.color = '#4CAF50';
+            msg.style.textShadow = '0 0 10px white';
+            msg.textContent = `Level ${level}!`;
+            document.getElementById('gameBoard').appendChild(msg);
+            
+            setTimeout(() => msg.remove(), 1500);
+        }
+
+        function updateStats() {
+            document.getElementById('score').textContent = score;
+            document.getElementById('level').textContent = level;
+            document.getElementById('combos').textContent = combos;
+            document.getElementById('height').textContent = maxHeight;
+        }
+
+        function startGame() {
+            document.getElementById('gameBoard').innerHTML = '';
+            cubes = [];
+            score = 0;
+            level = 1;
+            combos = 0;
+            maxHeight = 0;
+            powerUps = 3;
+            
+            for (let x = 0; x < GRID_SIZE; x++) {
+                for (let z = 0; z < GRID_SIZE; z++) {
+                    for (let y = GRID_SIZE - 1; y >= 0; y--) {
+                        const cube = createCube(x, y, z);
+                        cubes.push(cube);
+                        document.getElementById('gameBoard').appendChild(cube.element);
+                    }
+                }
+            }
+            
+            updateStats();
+        }
+
+        startGame();
+    </script>
+</body>
+</html>

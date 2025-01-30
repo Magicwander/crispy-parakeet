@@ -1,0 +1,114 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Dodge Game</title>
+    <style>
+        body {
+            margin: 0;
+            overflow: hidden;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            background-color: #000;
+        }
+        canvas {
+            border: 1px solid #fff;
+        }
+    </style>
+</head>
+<body>
+    <canvas id="gameCanvas" width="400" height="600"></canvas>
+    <script>
+        const canvas = document.getElementById('gameCanvas');
+        const ctx = canvas.getContext('2d');
+
+        const player = {
+            x: canvas.width / 2 - 25,
+            y: canvas.height - 75,
+            width: 50,
+            height: 50,
+            color: 'blue',
+            speed: 5
+        };
+
+        const obstacles = [];
+        let score = 0;
+
+        function createObstacle() {
+            const obstacle = {
+                x: Math.random() * (canvas.width - 50),
+                y: -50,
+                width: 50,
+                height: 50,
+                color: 'red',
+                speed: 3 + Math.random() * 2
+            };
+            obstacles.push(obstacle);
+        }
+
+        function drawPlayer() {
+            ctx.fillStyle = player.color;
+            ctx.fillRect(player.x, player.y, player.width, player.height);
+        }
+
+        function drawObstacles() {
+            obstacles.forEach(obstacle => {
+                ctx.fillStyle = obstacle.color;
+                ctx.fillRect(obstacle.x, obstacle.y, obstacle.width, obstacle.height);
+                obstacle.y += obstacle.speed;
+            });
+        }
+
+        function updateObstacles() {
+            obstacles.forEach((obstacle, index) => {
+                if (obstacle.y > canvas.height) {
+                    obstacles.splice(index, 1);
+                    score++;
+                }
+            });
+        }
+
+        function checkCollisions() {
+            obstacles.forEach(obstacle => {
+                if (player.x < obstacle.x + obstacle.width &&
+                    player.x + player.width > obstacle.x &&
+                    player.y < obstacle.y + obstacle.height &&
+                    player.y + player.height > obstacle.y) {
+                    alert(`Game Over! Your score: ${score}`);
+                    document.location.reload();
+                }
+            });
+        }
+
+        function update() {
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+            drawPlayer();
+            drawObstacles();
+            updateObstacles();
+            checkCollisions();
+
+            if (Math.random() < 0.02) {
+                createObstacle();
+            }
+
+            requestAnimationFrame(update);
+        }
+
+        function movePlayer(event) {
+            if (event.key === 'ArrowLeft' && player.x > 0) {
+                player.x -= player.speed;
+            } else if (event.key === 'ArrowRight' && player.x < canvas.width - player.width) {
+                player.x += player.speed;
+            }
+        }
+
+        document.addEventListener('keydown', movePlayer);
+
+        update();
+    </script>
+</body>
+</html>

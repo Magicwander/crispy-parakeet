@@ -1,0 +1,235 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Glassy Bubble Shooter</title>
+    <style>
+        body {
+            margin: 0;
+            height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            background: linear-gradient(45deg, #6c5ce7, #a66efa);
+            font-family: Arial, sans-serif;
+            touch-action: manipulation;
+        }
+
+        .game-container {
+            position: relative;
+            width: 360px;
+            height: 640px;
+            background: rgba(255, 255, 255, 0.1);
+            backdrop-filter: blur(10px);
+            border-radius: 20px;
+            overflow: hidden;
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+        }
+
+        .cannon {
+            position: absolute;
+            bottom: 20px;
+            left: 50%;
+            transform-origin: bottom center;
+            width: 40px;
+            height: 60px;
+            background: rgba(255, 255, 255, 0.2);
+            border-radius: 8px;
+        }
+
+        .bubble {
+            position: absolute;
+            width: 32px;
+            height: 32px;
+            border-radius: 50%;
+            border: 2px solid rgba(255, 255, 255, 0.3);
+            background: linear-gradient(145deg, rgba(255,255,255,0.2), rgba(255,255,255,0.1));
+        }
+
+        #bubbles-grid {
+            position: absolute;
+            top: 20px;
+            left: 20px;
+            right: 20px;
+            bottom: 120px;
+            display: grid;
+            grid-template-columns: repeat(8, 1fr);
+            gap: 4px;
+        }
+
+        .score {
+            position: absolute;
+            top: 20px;
+            left: 20px;
+            color: white;
+            font-size: 24px;
+            font-weight: bold;
+        }
+
+        .game-over {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            color: white;
+            text-align: center;
+            display: none;
+        }
+
+        .next-bubble {
+            position: absolute;
+            bottom: 100px;
+            left: 50%;
+            transform: translateX(-50%);
+        }
+    </style>
+</head>
+<body>
+    <div class="game-container">
+        <div class="score">Score: 0</div>
+        <div class="cannon"></div>
+        <div id="bubbles-grid"></div>
+        <div class="game-over">
+            <h2>Game Over!</h2>
+            <p>Final Score: <span id="final-score">0</span></p>
+            <button onclick="startGame()">Play Again</button>
+        </div>
+    </div>
+
+    <script>
+        let currentBubble;
+        let nextBubble;
+        let angle = -90;
+        let score = 0;
+        let bubbles = [];
+        const colors = ['#ff7675', '#74b9ff', '#55efc4', '#ffeaa7', '#a29bfe'];
+        
+        function createBubble(isNext = false) {
+            const bubble = document.createElement('div');
+            bubble.className = 'bubble';
+            bubble.style.backgroundColor = colors[Math.floor(Math.random() * colors.length)];
+            if(!isNext) {
+                bubble.style.left = '50%';
+                bubble.style.bottom = '120px';
+            }
+            return bubble;
+        }
+
+        function shootBubble() {
+            currentBubble.style.transform = `translateX(-50%)`;
+            const radians = angle * Math.PI / 180;
+            const velocity = { x: Math.cos(radians), y: Math.sin(radians) };
+            
+            let x = 180;
+            let y = 520;
+            
+            function animate() {
+                x += velocity.x * 8;
+                y += velocity.y * 8;
+                
+                currentBubble.style.left = x + 'px';
+                currentBubble.style.bottom = y + 'px';
+                
+                // Collision detection
+                if(x < 20 || x > 340) velocity.x *= -1;
+                if(y < 20) {
+                    attachBubble(x, y);
+                    return;
+                }
+                
+                // Check grid collision
+                const gridBubbles = document.querySelectorAll('#bubbles-grid .bubble');
+                for(let bubble of gridBubbles) {
+                    const rect = bubble.getBoundingClientRect();
+                    const distance = Math.hypot(x - (rect.left + 16), y - (rect.top + 16));
+                    if(distance < 32) {
+                        attachBubble(x, y);
+                        return;
+                    }
+                }
+                
+                requestAnimationFrame(animate);
+            }
+            animate();
+        }
+
+        function attachBubble(x, y) {
+            const grid = document.getElementById('bubbles-grid');
+            const newBubble = currentBubble.cloneNode(true);
+            newBubble.style.position = 'static';
+            grid.appendChild(newBubble);
+            
+            checkMatches(newBubble);
+            spawnNewBubble();
+            moveGridDown();
+        }
+
+        function checkMatches(bubble) {
+            // Add match-3 logic here
+            score += 10;
+            document.querySelector('.score').textContent = `Score: ${score}`;
+        }
+
+        function moveGridDown() {
+            const grid = document.getElementById('bubbles-grid');
+            grid.style.top = parseInt(grid.style.top || 20) + 4 + 'px';
+            
+            if(parseInt(grid.style.top) > 500) {
+                gameOver();
+            }
+        }
+
+        function spawnNewBubble() {
+            currentBubble = nextBubble;
+            nextBubble = createBubble(true);
+            document.querySelector('.next-bubble')?.remove();
+            nextBubble.style.position = 'absolute';
+            nextBubble.style.bottom = '100px';
+            nextBubble.style.left = '50%';
+            nextBubble.classList.add('next-bubble');
+            document.querySelector('.game-container').appendChild(nextBubble);
+        }
+
+        function gameOver() {
+            document.querySelector('.game-over').style.display = 'block';
+            document.getElementById('final-score').textContent = score;
+        }
+
+        function startGame() {
+            document.querySelector('.game-over').style.display = 'none';
+            document.getElementById('bubbles-grid').innerHTML = '';
+            score = 0;
+            
+            currentBubble = createBubble();
+            nextBubble = createBubble(true);
+            document.querySelector('.game-container').appendChild(currentBubble);
+            document.querySelector('.game-container').appendChild(nextBubble);
+            
+            // Initial grid
+            for(let i = 0; i < 24; i++) {
+                const bubble = createBubble();
+                bubble.style.position = 'static';
+                document.getElementById('bubbles-grid').appendChild(bubble);
+            }
+        }
+
+        // Controls
+        document.addEventListener('mousemove', (e) => {
+            const rect = document.querySelector('.game-container').getBoundingClientRect();
+            const centerX = rect.left + 180;
+            const centerY = rect.bottom - 80;
+            angle = Math.atan2(e.clientY - centerY, e.clientX - centerX) * 180 / Math.PI;
+            document.querySelector('.cannon').style.transform = `translateX(-50%) rotate(${angle}deg)`;
+        });
+
+        document.addEventListener('click', shootBubble);
+        document.addEventListener('touchstart', (e) => {
+            e.preventDefault();
+            shootBubble();
+        });
+
+        startGame();
+    </script>
+</body>
+</html>
